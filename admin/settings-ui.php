@@ -19,7 +19,6 @@ function image_squeeze_register_settings() {
         [
             'sanitize_callback' => 'image_squeeze_sanitize_settings',
             'default' => [
-                'placeholder_enabled' => false,
                 'quality' => 80,
                 'webp_delivery' => true,
                 'retry_on_next' => true,
@@ -35,15 +34,6 @@ function image_squeeze_register_settings() {
         __('General Settings', 'image-squeeze'),  // Title
         'image_squeeze_general_section_callback', // Callback
         'image_squeeze_settings_page'             // Page
-    );
-
-    // Add settings field
-    add_settings_field(
-        'placeholder_enabled',                        // ID
-        __('Enable Placeholder Feature', 'image-squeeze'), // Title
-        'image_squeeze_placeholder_field_callback',   // Callback
-        'image_squeeze_settings_page',                // Page
-        'image_squeeze_general_section'               // Section
     );
     
     // Add compression quality field
@@ -101,7 +91,6 @@ add_action('admin_init', 'image_squeeze_register_settings');
  */
 function image_squeeze_sanitize_settings($input) {
     $output = [];
-    $output['placeholder_enabled'] = !empty($input['placeholder_enabled']);
     
     // Sanitize the quality slider value (ensure it's between 50-100)
     $output['quality'] = isset($input['quality']) ? min(100, max(50, intval($input['quality']))) : 80;
@@ -126,29 +115,6 @@ function image_squeeze_sanitize_settings($input) {
  */
 function image_squeeze_general_section_callback() {
     echo '<p>' . esc_html__('Configure general plugin settings below.', 'image-squeeze') . '</p>';
-}
-
-/**
- * Render placeholder field.
- */
-function image_squeeze_placeholder_field_callback() {
-    $options = get_option('imagesqueeze_settings');
-    $checked = isset($options['placeholder_enabled']) ? $options['placeholder_enabled'] : false;
-    ?>
-    <label for="placeholder_enabled">
-        <input 
-            type="checkbox" 
-            id="placeholder_enabled" 
-            name="imagesqueeze_settings[placeholder_enabled]" 
-            value="1" 
-            <?php checked(1, $checked); ?>
-        />
-        <?php esc_html_e('Enable this placeholder feature', 'image-squeeze'); ?>
-    </label>
-    <p class="description">
-        <?php esc_html_e('This is just a placeholder for now.', 'image-squeeze'); ?>
-    </p>
-    <?php
 }
 
 /**
@@ -285,275 +251,193 @@ function image_squeeze_auto_optimize_field_callback() {
 }
 
 /**
- * Render the settings page.
+ * Render the settings UI.
  */
 function image_squeeze_settings_ui() {
+    // Get current settings
+    $settings = get_option('imagesqueeze_settings', []);
+    $quality = isset($settings['quality']) ? intval($settings['quality']) : 80;
+    $webp_enabled = isset($settings['webp_delivery']) ? $settings['webp_delivery'] : true;
+    $auto_retry = isset($settings['retry_on_next']) ? $settings['retry_on_next'] : true;
+    $max_size = isset($settings['max_output_size_kb']) ? intval($settings['max_output_size_kb']) : 0;
+    $auto_optimize = isset($settings['optimize_on_upload']) ? $settings['optimize_on_upload'] : false;
     ?>
-    <div class="wrap image-squeeze-settings">
+    <div class="wrap">
         <h1><?php esc_html_e('Image Squeeze Settings', 'image-squeeze'); ?></h1>
         
-        <form method="post" action="options.php">
+        <form method="post" action="options.php" class="imagesqueeze-settings-form">
             <?php
                 settings_fields('image_squeeze_settings_group');
             ?>
             
-            <table class="form-table" role="presentation">
-                <tbody>
-                    <!-- Compression Settings Section -->
-                    <tr>
-                        <th colspan="2">
-                            <h2 class="title"><?php esc_html_e('Compression Settings', 'image-squeeze'); ?></h2>
-                        </th>
-                    </tr>
-                    
-                    <!-- Quality Slider -->
-                    <tr>
-                        <th scope="row">
-                            <label for="quality-slider"><?php esc_html_e('Compression Quality (%)', 'image-squeeze'); ?></label>
-                        </th>
-                        <td>
-                            <?php 
-                            $settings = get_option('imagesqueeze_settings', []);
-                            $quality = isset($settings['quality']) ? intval($settings['quality']) : 80;
-                            ?>
-                            <div class="quality-slider-container">
-                                <input 
-                                    type="range" 
-                                    id="quality-slider" 
-                                    name="imagesqueeze_settings[quality]" 
-                                    min="50" 
-                                    max="100" 
-                                    step="1" 
-                                    value="<?php echo esc_attr($quality); ?>" 
-                                    oninput="document.getElementById('quality-value').textContent = this.value"
-                                    aria-valuemin="50"
-                                    aria-valuemax="100"
-                                    aria-valuenow="<?php echo esc_attr($quality); ?>"
-                                    aria-labelledby="quality-slider-label"
-                                />
-                                <span class="quality-value-display" id="quality-slider-label">
-                                    <span id="quality-value"><?php echo esc_html($quality); ?></span>%
-                                </span>
-                            </div>
-                            <p class="description">
-                                <?php esc_html_e('Lower values reduce file size more, but may slightly affect visual quality. 80% is recommended for most websites.', 'image-squeeze'); ?>
-                            </p>
-                        </td>
-                    </tr>
-                    
-                    <!-- Max File Size -->
-                    <tr>
-                        <th scope="row">
-                            <label for="max_output_size_kb"><?php esc_html_e('Maximum Output File Size (KB)', 'image-squeeze'); ?></label>
-                        </th>
-                        <td>
-                            <?php
-                            $max_size = isset($settings['max_output_size_kb']) ? intval($settings['max_output_size_kb']) : 0;
-                            ?>
-                            <input 
-                                type="number" 
-                                id="max_output_size_kb" 
-                                name="imagesqueeze_settings[max_output_size_kb]" 
-                                min="0" 
-                                value="<?php echo esc_attr($max_size); ?>"
-                                class="small-text"
-                                aria-describedby="max-size-description"
-                            />
-                            <span><?php esc_html_e('KB', 'image-squeeze'); ?></span>
-                            <p class="description" id="max-size-description">
-                                <?php esc_html_e('If set, the plugin will attempt to reduce optimized image size below this limit (while still respecting the selected compression quality).', 'image-squeeze'); ?>
-                            </p>
-                            <p class="description">
-                                <?php esc_html_e('Leave as 0 to disable this feature.', 'image-squeeze'); ?>
-                            </p>
-                        </td>
-                    </tr>
-                    
-                    <!-- WebP Conversion Section -->
-                    <tr>
-                        <th colspan="2">
-                            <h2 class="title"><?php esc_html_e('WebP Settings', 'image-squeeze'); ?></h2>
-                        </th>
-                    </tr>
-                    
-                    <!-- WebP Delivery -->
-                    <tr>
-                        <th scope="row">
-                            <label for="webp_delivery"><?php esc_html_e('Serve WebP Images', 'image-squeeze'); ?></label>
-                        </th>
-                        <td>
-                            <?php
-                            $webp_enabled = isset($settings['webp_delivery']) ? $settings['webp_delivery'] : true;
-                            ?>
-                            <fieldset>
-                                <legend class="screen-reader-text">
-                                    <span><?php esc_html_e('Serve WebP Images', 'image-squeeze'); ?></span>
-                                </legend>
-                                <label for="webp_delivery">
+            <!-- Optimization Settings -->
+            <div class="imagesqueeze-settings-section">
+                <h2><span class="dashicons dashicons-admin-settings"></span> <?php esc_html_e('Optimization Settings', 'image-squeeze'); ?></h2>
+                
+                <table class="form-table" role="presentation">
+                    <tbody>
+                        <!-- Quality Slider -->
+                        <tr>
+                            <th scope="row">
+                                <label for="quality-slider"><?php esc_html_e('Compression Quality', 'image-squeeze'); ?></label>
+                            </th>
+                            <td>
+                                <div class="quality-slider-container">
                                     <input 
-                                        type="checkbox" 
-                                        id="webp_delivery" 
-                                        name="imagesqueeze_settings[webp_delivery]" 
-                                        value="1" 
-                                        <?php checked(1, $webp_enabled); ?>
+                                        type="range" 
+                                        id="quality-slider" 
+                                        name="imagesqueeze_settings[quality]" 
+                                        min="50" 
+                                        max="100" 
+                                        step="1" 
+                                        value="<?php echo esc_attr($quality); ?>" 
+                                        oninput="document.getElementById('quality-value').textContent = this.value"
+                                        aria-valuemin="50"
+                                        aria-valuemax="100"
+                                        aria-valuenow="<?php echo esc_attr($quality); ?>"
+                                        aria-labelledby="quality-slider-label"
                                     />
-                                    <?php esc_html_e('Serve WebP Images Automatically', 'image-squeeze'); ?>
-                                </label>
+                                    <span class="quality-value-display" id="quality-slider-label">
+                                        <span id="quality-value"><?php echo esc_html($quality); ?></span>%
+                                    </span>
+                                </div>
+                                <p class="description">
+                                    <?php esc_html_e('Controls the compression ratio for all optimized images. Lower values reduce file size more, but may slightly affect visual quality. 80% is recommended for most websites.', 'image-squeeze'); ?>
+                                </p>
+                            </td>
+                        </tr>
+                        
+                        <!-- Max File Size -->
+                        <tr>
+                            <th scope="row">
+                                <label for="max_output_size_kb"><?php esc_html_e('Maximum Output File Size', 'image-squeeze'); ?></label>
+                            </th>
+                            <td>
+                                <input 
+                                    type="number" 
+                                    id="max_output_size_kb" 
+                                    name="imagesqueeze_settings[max_output_size_kb]" 
+                                    min="0" 
+                                    value="<?php echo esc_attr($max_size); ?>"
+                                    class="small-text"
+                                    aria-describedby="max-size-description"
+                                />
+                                <span><?php esc_html_e('KB', 'image-squeeze'); ?></span>
+                                <p class="description" id="max-size-description">
+                                    <?php esc_html_e('If set, the plugin will attempt to reduce optimized image size below this limit (while still respecting the selected compression quality).', 'image-squeeze'); ?>
+                                </p>
+                                <p class="description">
+                                    <?php esc_html_e('Leave blank or 0 to disable max file size targeting.', 'image-squeeze'); ?>
+                                </p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- WebP Settings -->
+            <div class="imagesqueeze-settings-section">
+                <h2><span class="dashicons dashicons-images-alt2"></span> <?php esc_html_e('WebP Settings', 'image-squeeze'); ?></h2>
+                
+                <table class="form-table" role="presentation">
+                    <tbody>
+                        <!-- WebP Delivery -->
+                        <tr>
+                            <th scope="row">
+                                <label for="webp_delivery"><?php esc_html_e('Serve WebP Images', 'image-squeeze'); ?></label>
+                            </th>
+                            <td>
+                                <div class="imagesqueeze-toggle-container">
+                                    <label class="imagesqueeze-toggle">
+                                        <input 
+                                            type="checkbox" 
+                                            id="webp_delivery" 
+                                            name="imagesqueeze_settings[webp_delivery]" 
+                                            value="1" 
+                                            <?php checked(1, $webp_enabled); ?>
+                                        />
+                                        <span class="imagesqueeze-toggle-slider"></span>
+                                        <span class="imagesqueeze-toggle-label"><?php esc_html_e('Serve WebP Images Automatically', 'image-squeeze'); ?></span>
+                                    </label>
+                                </div>
                                 <p class="description">
                                     <?php esc_html_e('Automatically serves WebP versions of your images to supported browsers. If the browser doesn\'t support WebP, it will fall back to the original image.', 'image-squeeze'); ?>
                                 </p>
                                 <p class="description">
                                     <?php esc_html_e('You might want to disable this if you have CDN conflicts or theme compatibility issues.', 'image-squeeze'); ?>
                                 </p>
-                            </fieldset>
-                        </td>
-                    </tr>
-                    
-                    <!-- Automation Settings Section -->
-                    <tr>
-                        <th colspan="2">
-                            <h2 class="title"><?php esc_html_e('Automation Settings', 'image-squeeze'); ?></h2>
-                        </th>
-                    </tr>
-                    
-                    <!-- Auto-Optimize on Upload -->
-                    <tr>
-                        <th scope="row">
-                            <label for="optimize_on_upload"><?php esc_html_e('Optimize New Uploads', 'image-squeeze'); ?></label>
-                        </th>
-                        <td>
-                            <?php
-                            $auto_optimize = isset($settings['optimize_on_upload']) ? $settings['optimize_on_upload'] : false;
-                            ?>
-                            <fieldset>
-                                <legend class="screen-reader-text">
-                                    <span><?php esc_html_e('Optimize New Uploads', 'image-squeeze'); ?></span>
-                                </legend>
-                                <label for="optimize_on_upload">
-                                    <input 
-                                        type="checkbox" 
-                                        id="optimize_on_upload" 
-                                        name="imagesqueeze_settings[optimize_on_upload]" 
-                                        value="1" 
-                                        <?php checked(1, $auto_optimize); ?>
-                                    />
-                                    <?php esc_html_e('Auto-Optimize on Upload', 'image-squeeze'); ?>
-                                </label>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Automation Settings -->
+            <div class="imagesqueeze-settings-section">
+                <h2><span class="dashicons dashicons-update"></span> <?php esc_html_e('Automation Settings', 'image-squeeze'); ?></h2>
+                
+                <table class="form-table" role="presentation">
+                    <tbody>
+                        <!-- Auto-Optimize on Upload -->
+                        <tr>
+                            <th scope="row">
+                                <label for="optimize_on_upload"><?php esc_html_e('Optimize New Uploads', 'image-squeeze'); ?></label>
+                            </th>
+                            <td>
+                                <div class="imagesqueeze-toggle-container">
+                                    <label class="imagesqueeze-toggle">
+                                        <input 
+                                            type="checkbox" 
+                                            id="optimize_on_upload" 
+                                            name="imagesqueeze_settings[optimize_on_upload]" 
+                                            value="1" 
+                                            <?php checked(1, $auto_optimize); ?>
+                                        />
+                                        <span class="imagesqueeze-toggle-slider"></span>
+                                        <span class="imagesqueeze-toggle-label"><?php esc_html_e('Auto-Optimize on Upload', 'image-squeeze'); ?></span>
+                                    </label>
+                                </div>
                                 <p class="description">
                                     <?php esc_html_e('Automatically compress and convert new uploads to WebP. Original image (JPG/PNG) will be deleted after successful conversion.', 'image-squeeze'); ?>
                                 </p>
                                 <p class="description">
                                     <?php esc_html_e('This is ideal for WooCommerce or content-heavy sites with frequent uploads.', 'image-squeeze'); ?>
                                 </p>
-                            </fieldset>
-                        </td>
-                    </tr>
-                    
-                    <!-- Auto-Retry Failed Images -->
-                    <tr>
-                        <th scope="row">
-                            <label for="retry_on_next"><?php esc_html_e('Auto-Retry Failed Images', 'image-squeeze'); ?></label>
-                        </th>
-                        <td>
-                            <?php
-                            $auto_retry = isset($settings['retry_on_next']) ? $settings['retry_on_next'] : true;
-                            ?>
-                            <fieldset>
-                                <legend class="screen-reader-text">
-                                    <span><?php esc_html_e('Auto-Retry Failed Images', 'image-squeeze'); ?></span>
-                                </legend>
-                                <label for="retry_on_next">
-                                    <input 
-                                        type="checkbox" 
-                                        id="retry_on_next" 
-                                        name="imagesqueeze_settings[retry_on_next]" 
-                                        value="1" 
-                                        <?php checked(1, $auto_retry); ?>
-                                    />
-                                    <?php esc_html_e('Retry Failed Images Automatically', 'image-squeeze'); ?>
-                                </label>
+                            </td>
+                        </tr>
+                        
+                        <!-- Auto-Retry Failed Images -->
+                        <tr>
+                            <th scope="row">
+                                <label for="retry_on_next"><?php esc_html_e('Auto-Retry Failed Images', 'image-squeeze'); ?></label>
+                            </th>
+                            <td>
+                                <div class="imagesqueeze-toggle-container">
+                                    <label class="imagesqueeze-toggle">
+                                        <input 
+                                            type="checkbox" 
+                                            id="retry_on_next" 
+                                            name="imagesqueeze_settings[retry_on_next]" 
+                                            value="1" 
+                                            <?php checked(1, $auto_retry); ?>
+                                        />
+                                        <span class="imagesqueeze-toggle-slider"></span>
+                                        <span class="imagesqueeze-toggle-label"><?php esc_html_e('Retry Failed Images Automatically', 'image-squeeze'); ?></span>
+                                    </label>
+                                </div>
                                 <p class="description">
                                     <?php esc_html_e('Automatically reprocess failed images when starting the next optimization job.', 'image-squeeze'); ?>
                                 </p>
-                            </fieldset>
-                        </td>
-                    </tr>
-                    
-                    <!-- Development Settings Section -->
-                    <tr>
-                        <th colspan="2">
-                            <h2 class="title"><?php esc_html_e('Development Settings', 'image-squeeze'); ?></h2>
-                        </th>
-                    </tr>
-                    
-                    <!-- Placeholder feature -->
-                    <tr>
-                        <th scope="row">
-                            <label for="placeholder_enabled"><?php esc_html_e('Placeholder Feature', 'image-squeeze'); ?></label>
-                        </th>
-                        <td>
-                            <?php
-                            $placeholder_enabled = isset($settings['placeholder_enabled']) ? $settings['placeholder_enabled'] : false;
-                            ?>
-                            <fieldset>
-                                <legend class="screen-reader-text">
-                                    <span><?php esc_html_e('Placeholder Feature', 'image-squeeze'); ?></span>
-                                </legend>
-                                <label for="placeholder_enabled">
-                                    <input 
-                                        type="checkbox" 
-                                        id="placeholder_enabled" 
-                                        name="imagesqueeze_settings[placeholder_enabled]" 
-                                        value="1" 
-                                        <?php checked(1, $placeholder_enabled); ?>
-                                    />
-                                    <?php esc_html_e('Enable Placeholder Feature', 'image-squeeze'); ?>
-                                </label>
-                                <p class="description">
-                                    <?php esc_html_e('This is just a placeholder for now.', 'image-squeeze'); ?>
-                                </p>
-                            </fieldset>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
             
-            <?php submit_button(__('Save Settings', 'image-squeeze')); ?>
+            <div class="imagesqueeze-save-settings">
+                <?php submit_button(__('Save Settings', 'image-squeeze'), 'primary', 'submit', false); ?>
+            </div>
         </form>
-        
-        <style>
-            /* Custom settings page styles */
-            .image-squeeze-settings .form-table th {
-                padding-top: 20px;
-                vertical-align: top;
-                width: 250px;
-            }
-            
-            .image-squeeze-settings .form-table h2.title {
-                margin: 2em 0 1em;
-                padding: 0;
-                font-size: 1.3em;
-                border-bottom: 1px solid #e5e5e5;
-                padding-bottom: 0.5em;
-            }
-            
-            .image-squeeze-settings .form-table tr:first-child h2.title {
-                margin-top: 0.5em;
-            }
-            
-            .image-squeeze-settings fieldset label {
-                display: block;
-                margin-bottom: 0.3em;
-                font-weight: 500;
-            }
-            
-            .image-squeeze-settings .quality-slider-container {
-                display: flex;
-                align-items: center;
-                max-width: 400px;
-                margin-bottom: 0.8em;
-            }
-        </style>
     </div>
     <?php
 } 
