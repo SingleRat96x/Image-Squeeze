@@ -8,6 +8,9 @@
 // Prevent direct access to this file.
 defined('ABSPATH') || exit;
 
+// Include settings UI
+require_once plugin_dir_path(__FILE__) . 'settings-ui.php';
+
 /**
  * Register admin menu and pages.
  */
@@ -424,19 +427,11 @@ function image_squeeze_render_logs_tab() {
 }
 
 /**
- * Render Settings tab content (placeholder for now).
+ * Render Settings tab content.
  */
 function image_squeeze_render_settings_tab() {
-    ?>
-    <div class="image-squeeze-settings">
-        <div class="postbox">
-            <h2 class="hndle"><span><?php echo esc_html__('Settings', 'image-squeeze'); ?></span></h2>
-            <div class="inside">
-                <p><?php echo esc_html__('Settings will be displayed here in a future update.', 'image-squeeze'); ?></p>
-            </div>
-        </div>
-    </div>
-    <?php
+    // Call the settings UI function
+    image_squeeze_settings_ui();
 }
 
 /**

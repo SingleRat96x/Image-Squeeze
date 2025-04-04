@@ -30,6 +30,7 @@ require_once IMAGESQUEEZE_PATH . 'includes/logger.php';
 require_once IMAGESQUEEZE_PATH . 'includes/cleanup.php';
 require_once IMAGESQUEEZE_PATH . 'includes/webp-serving.php';
 require_once IMAGESQUEEZE_PATH . 'includes/cleanup-handler.php';
+require_once IMAGESQUEEZE_PATH . 'includes/upload-handler.php';
 
 // Include admin UI files if in admin.
 if (is_admin()) {

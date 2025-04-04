@@ -471,4 +471,121 @@
 
 .imagesqueeze-section {
     margin-bottom: 30px;
+}
+
+/* Settings UI */
+.image-squeeze-settings {
+    max-width: 1200px;
+    padding: 20px 0;
+}
+
+.image-squeeze-settings .form-table {
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.image-squeeze-settings .form-table th {
+    font-weight: 600;
+    width: 230px;
+    padding: 20px 10px 20px 0;
+}
+
+.image-squeeze-settings .form-table td {
+    padding: 20px 10px;
+}
+
+.image-squeeze-settings h2 {
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+}
+
+.image-squeeze-settings .submit {
+    padding: 0;
+    margin-top: 20px;
+}
+
+.image-squeeze-settings .description {
+    color: #666;
+    font-style: italic;
+    margin-top: 5px;
+}
+
+/* Quality Slider Styles */
+.quality-slider-container {
+    display: flex;
+    align-items: center;
+    margin: 5px 0;
+}
+
+.quality-slider-container input[type="range"] {
+    width: 300px;
+    max-width: 100%;
+    margin-right: 15px;
+}
+
+.quality-value-display {
+    font-weight: 600;
+    color: #2271b1;
+    font-size: 16px;
+    min-width: 45px;
+    display: inline-block;
+    text-align: center;
+    background: #f0f0f1;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+/* Make slider look better in WordPress admin */
+input[type=range] {
+    -webkit-appearance: none;
+    margin: 10px 0;
+    height: 8px;
+    background: #f0f0f1;
+    border-radius: 4px;
+    border: 1px solid #dcdcde;
+}
+
+input[type=range]:focus {
+    outline: none;
+    border-color: #2271b1;
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: #2271b1;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: background 0.2s;
+}
+
+input[type=range]::-moz-range-thumb {
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: #2271b1;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    border: none;
+    transition: background 0.2s;
+}
+
+input[type=range]::-webkit-slider-thumb:hover {
+    background: #135e96;
+}
+
+input[type=range]::-moz-range-thumb:hover {
+    background: #135e96;
 } 
