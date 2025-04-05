@@ -48,16 +48,20 @@ function image_squeeze_activate() {
         // WebP rules to inject.
         $webp_rules = "
 # BEGIN Image Squeeze WebP Rules
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteCond %{HTTP_ACCEPT} image/webp
-  RewriteCond %{REQUEST_FILENAME} \\.(jpe?g|png)$
-  RewriteCond %{REQUEST_FILENAME}.webp -f
-  RewriteRule ^(.+)\\.(jpe?g|png)$ $1.$2.webp [T=image/webp,E=accept:1]
-  Header append Vary Accept
+<IfModule mod_mime.c>
+    AddType image/webp .webp
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch \"\\.(jpe?g|png)$\">
+    Header append Vary Accept
+  </FilesMatch>
 </IfModule>
 # END Image Squeeze WebP Rules
 ";
+
+        // .htaccess no longer rewrites .jpg or .png to .webp.
+        // All WebP delivery is handled via WordPress filters in the plugin.
 
         // Get uploads directory path.
         $upload_dir = wp_upload_dir();
@@ -72,6 +76,11 @@ function image_squeeze_activate() {
                 copy($htaccess_path, $htaccess_path . '.imagesqueeze-backup');
                 // Append our rules.
                 file_put_contents($htaccess_path, $htaccess_content . $webp_rules);
+            } else {
+                // Rules exist, but might be old rewrite rules. Update them.
+                $pattern = '/# BEGIN Image Squeeze WebP Rules.*?# END Image Squeeze WebP Rules\s*/s';
+                $htaccess_content = preg_replace($pattern, $webp_rules, $htaccess_content);
+                file_put_contents($htaccess_path, $htaccess_content);
             }
         } else {
             // Create new .htaccess file with our rules.

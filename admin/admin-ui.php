@@ -209,15 +209,18 @@ function image_squeeze_render_dashboard_tab() {
         $last_run = get_option('imagesqueeze_last_run_summary', null);
     }
     
+    // Safely initialize last run values to prevent undefined array key warnings
+    $last_run_optimized = isset($last_run['optimized']) ? intval($last_run['optimized']) : 0;
+    $last_run_failed = isset($last_run['failed']) ? intval($last_run['failed']) : 0;
+    $last_run_date = isset($last_run['date']) ? $last_run['date'] : '';
+    $last_run_saved_bytes = isset($last_run['saved_bytes']) ? intval($last_run['saved_bytes']) : 0;
+    
     // Get current job
     $current_job = get_option('imagesqueeze_current_job', array());
     $job_in_progress = !empty($current_job) && isset($current_job['status']) && $current_job['status'] === 'in_progress';
     
     // Get total saved bytes
     $total_saved_bytes = get_option('imagesqueeze_total_saved_bytes', 0);
-    
-    // Get last run saved bytes
-    $last_run_saved_bytes = isset($last_run['saved_bytes']) ? intval($last_run['saved_bytes']) : 0;
     
     // Helper function to format bytes
     function image_squeeze_format_bytes($bytes) {
@@ -318,7 +321,7 @@ function image_squeeze_render_dashboard_tab() {
             </div>
         </div>
         
-        <!-- Last Run Summary -->
+        <!-- Last Optimization Summary -->
         <div class="imagesqueeze-summary-card">
             <div class="imagesqueeze-summary-header">
                 <span class="dashicons dashicons-clock"></span>
@@ -334,7 +337,7 @@ function image_squeeze_render_dashboard_tab() {
                             </div>
                             <div class="summary-info">
                                 <span class="summary-label"><?php echo esc_html__('Last Run', 'image-squeeze'); ?></span>
-                                <span class="summary-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($last_run['date']))); ?></span>
+                                <span class="summary-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($last_run_date))); ?></span>
                             </div>
                         </li>
                         
@@ -344,13 +347,13 @@ function image_squeeze_render_dashboard_tab() {
                             </div>
                             <div class="summary-info">
                                 <span class="summary-label"><?php echo esc_html__('Optimized Images', 'image-squeeze'); ?></span>
-                                <span class="summary-value"><?php echo intval($last_run['optimized']); ?></span>
+                                <span class="summary-value"><?php echo esc_html($last_run_optimized); ?></span>
                                 
-                                <?php if (isset($last_run['failed']) && $last_run['failed'] > 0): ?>
+                                <?php if ($last_run_failed > 0): ?>
                                 <span class="summary-value warning">
                                     <span class="dashicons dashicons-warning"></span>
                                     <?php echo esc_html__('Failed:', 'image-squeeze'); ?> 
-                                    <strong><?php echo intval($last_run['failed']); ?></strong>
+                                    <strong><?php echo esc_html($last_run_failed); ?></strong>
                                 </span>
                                 <?php endif; ?>
                             </div>

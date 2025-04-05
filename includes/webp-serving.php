@@ -15,6 +15,21 @@ defined('ABSPATH') || exit;
  * If not, it falls back to PHP-based filtering.
  */
 function image_squeeze_init_webp_serving() {
+    // Always remove filters first to prevent stacking
+    remove_filter('wp_get_attachment_image_src', 'image_squeeze_filter_image_src');
+    remove_filter('wp_calculate_image_srcset', 'image_squeeze_filter_image_srcset');
+    
+    // Skip in admin or AJAX context
+    if (is_admin() || (defined('DOING_AJAX') && DOING_AJAX)) {
+        return;
+    }
+    
+    // Check if WebP delivery is enabled in settings
+    $settings = get_option('imagesqueeze_settings', array());
+    if (empty($settings['webp_delivery'])) {
+        return;
+    }
+    
     // Check if we're already using the filter method
     $using_filters = get_option( 'imagesqueeze_using_filters', false );
     
@@ -80,8 +95,20 @@ function image_squeeze_filter_image_src( $image, $attachment_id, $size, $icon ) 
         return $image;
     }
     
+    // Create WebP URL
+    $webp_url = $image[0] . '.webp';
+    
+    // Convert URL to file path to check if WebP file exists
+    $upload_dir = wp_upload_dir();
+    $webp_path = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], $webp_url );
+    
+    // Check if WebP file actually exists
+    if ( ! file_exists( $webp_path ) ) {
+        return $image;
+    }
+    
     // Modify the URL to point to the WebP version
-    $image[0] = $image[0] . '.webp';
+    $image[0] = $webp_url;
     
     return $image;
 }
@@ -119,6 +146,8 @@ function image_squeeze_filter_image_srcset( $sources, $size_array, $image_src, $
         return $sources;
     }
     
+    $upload_dir = wp_upload_dir();
+    
     // Modify each source URL to use WebP if available
     foreach ( $sources as $width => $source ) {
         // Find the size name from the URL
@@ -135,8 +164,17 @@ function image_squeeze_filter_image_srcset( $sources, $size_array, $image_src, $
         
         // Check if this specific size has a WebP version
         if ( ! empty( $webp_sizes[$size_name] ) ) {
-            // Update URL to WebP version
-            $sources[$width]['url'] = $url . '.webp';
+            // Generate WebP URL
+            $webp_url = $url . '.webp';
+            
+            // Convert URL to file path to check if WebP file exists
+            $webp_path = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], $webp_url );
+            
+            // Check if WebP file actually exists
+            if ( file_exists( $webp_path ) ) {
+                // Update URL to WebP version
+                $sources[$width]['url'] = $webp_url;
+            }
         }
     }
     
@@ -171,5 +209,5 @@ function image_squeeze_browser_supports_webp() {
     return false;
 }
 
-// Initialize WebP serving on plugins loaded
-add_action( 'plugins_loaded', 'image_squeeze_init_webp_serving' ); 
+// Initialize WebP serving on init with higher priority
+add_action('init', 'image_squeeze_init_webp_serving', 20); 

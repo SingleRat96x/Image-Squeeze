@@ -54,22 +54,8 @@ function image_squeeze_handle_upload($metadata, $attachment_id) {
     
     // Convert to WebP (use existing function)
     if (function_exists('image_squeeze_process_image')) {
+        // Process the image but never delete the original
         $result = image_squeeze_process_image($attachment_id, $quality);
-        
-        // If successful and original should be deleted
-        if ($result === true) {
-            // Get WebP file path by adding .webp extension
-            $webp_path = $file_path . '.webp';
-            
-            // Only delete original if WebP was successfully created
-            if (file_exists($webp_path)) {
-                // Delete the original file
-                @unlink($file_path);
-                
-                // Update metadata to reflect the change
-                update_post_meta($attachment_id, '_imagesqueeze_original_deleted', true);
-            }
-        }
     }
     
     return $metadata;
