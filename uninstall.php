@@ -28,7 +28,6 @@ foreach ($options_to_delete as $option) {
 }
 
 // Delete post meta data
-global $wpdb;
 $post_meta_to_delete = [
     '_imagesqueeze_optimized',
     '_imagesqueeze_webp_sizes',
@@ -37,8 +36,42 @@ $post_meta_to_delete = [
     '_imagesqueeze_last_attempt',
 ];
 
-foreach ($post_meta_to_delete as $meta_key) {
-    $wpdb->delete($wpdb->postmeta, ['meta_key' => $meta_key], ['%s']);
+// Use WordPress API to delete post meta instead of direct database queries
+// First, get all attachment IDs (we'll limit this for large sites)
+$attachment_ids = get_posts([
+    'post_type' => 'attachment',
+    'post_status' => 'any',
+    'fields' => 'ids',
+    'posts_per_page' => -1,
+    'meta_query' => [
+        'relation' => 'OR',
+        ['key' => '_imagesqueeze_optimized', 'compare' => 'EXISTS'],
+        ['key' => '_imagesqueeze_webp_sizes', 'compare' => 'EXISTS'],
+        ['key' => '_imagesqueeze_error_message', 'compare' => 'EXISTS'],
+        ['key' => '_imagesqueeze_status', 'compare' => 'EXISTS'],
+        ['key' => '_imagesqueeze_last_attempt', 'compare' => 'EXISTS'],
+    ]
+]);
+
+// Delete meta for each attachment
+if (!empty($attachment_ids)) {
+    foreach ($attachment_ids as $attachment_id) {
+        foreach ($post_meta_to_delete as $meta_key) {
+            delete_post_meta($attachment_id, $meta_key);
+        }
+    }
+}
+
+// Clear all caches related to image squeeze
+$cache_keys = [
+    'imagesqueeze_unoptimized_images',
+    'imagesqueeze_failed_images',
+    'imagesqueeze_optimized_count',
+    'imagesqueeze_failed_count'
+];
+
+foreach ($cache_keys as $cache_key) {
+    wp_cache_delete($cache_key);
 }
 
 // Note: We're intentionally leaving .webp files untouched 

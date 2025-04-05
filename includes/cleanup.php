@@ -59,14 +59,10 @@ function image_squeeze_find_orphaned_webps() {
 /**
  * Delete orphaned WebP files.
  *
- * @param array $webp_files List of WebP file paths to delete.
- * @return int Number of files successfully deleted.
+ * @param array $webp_files Array of file paths to delete.
+ * @return int Number of files deleted.
  */
 function image_squeeze_delete_orphaned_webps( $webp_files ) {
-    if ( empty( $webp_files ) ) {
-        return 0;
-    }
-    
     // Get the uploads directory for safety check
     $upload_dir = wp_upload_dir();
     $base_dir = $upload_dir['basedir'];
@@ -75,6 +71,13 @@ function image_squeeze_delete_orphaned_webps( $webp_files ) {
     $base_dir = trailingslashit( $base_dir );
     
     $deleted_count = 0;
+    
+    // Initialize the WordPress Filesystem
+    global $wp_filesystem;
+    if ( ! $wp_filesystem ) {
+        require_once ABSPATH . '/wp-admin/includes/file.php';
+        WP_Filesystem();
+    }
     
     foreach ( $webp_files as $file_path ) {
         // Safety check: Ensure the file is within the uploads directory
@@ -88,8 +91,8 @@ function image_squeeze_delete_orphaned_webps( $webp_files ) {
             continue;
         }
         
-        // Try to delete the file
-        if ( file_exists( $file_path ) && is_writable( $file_path ) && unlink( $file_path ) ) {
+        // Try to delete the file using WordPress functions
+        if ( file_exists( $file_path ) && $wp_filesystem->exists( $file_path ) && wp_delete_file( $file_path ) ) {
             $deleted_count++;
         }
     }

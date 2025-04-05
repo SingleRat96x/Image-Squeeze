@@ -41,7 +41,8 @@ function image_squeeze_init_webp_serving() {
     }
     
     // If not using filters, check if we're on Apache
-    $is_apache = ( isset( $_SERVER['SERVER_SOFTWARE'] ) && stripos( $_SERVER['SERVER_SOFTWARE'], 'apache' ) !== false );
+    $server_software = isset($_SERVER['SERVER_SOFTWARE']) ? sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE'])) : '';
+    $is_apache = (stripos($server_software, 'apache') !== false);
     
     // If not Apache, fall back to PHP filters
     if ( ! $is_apache ) {
@@ -188,19 +189,19 @@ function image_squeeze_filter_image_srcset( $sources, $size_array, $image_src, $
  */
 function image_squeeze_browser_supports_webp() {
     // Check Accept header for image/webp
-    if ( isset( $_SERVER['HTTP_ACCEPT'] ) && strpos( $_SERVER['HTTP_ACCEPT'], 'image/webp' ) !== false ) {
+    $http_accept = isset($_SERVER['HTTP_ACCEPT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_ACCEPT'])) : '';
+    if (strpos($http_accept, 'image/webp') !== false) {
         return true;
     }
     
     // Check User-Agent for known WebP supporting browsers (less reliable)
-    if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
-        $user_agent = $_SERVER['HTTP_USER_AGENT'];
-        
+    $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : '';
+    if (!empty($user_agent)) {
         // Chrome 9+, Opera 12+, Firefox 65+
         if ( 
-            ( strpos( $user_agent, 'Chrome/' ) !== false && preg_match( '/Chrome\/([0-9]+)/', $user_agent, $matches ) && (int) $matches[1] >= 9 ) ||
-            ( strpos( $user_agent, 'Opera/' ) !== false ) ||
-            ( strpos( $user_agent, 'Firefox/' ) !== false && preg_match( '/Firefox\/([0-9]+)/', $user_agent, $matches ) && (int) $matches[1] >= 65 )
+            (strpos($user_agent, 'Chrome/') !== false && preg_match('/Chrome\/([0-9]+)/', $user_agent, $matches) && (int) $matches[1] >= 9) ||
+            (strpos($user_agent, 'Opera/') !== false) ||
+            (strpos($user_agent, 'Firefox/') !== false && preg_match('/Firefox\/([0-9]+)/', $user_agent, $matches) && (int) $matches[1] >= 65)
         ) {
             return true;
         }

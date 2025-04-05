@@ -41,7 +41,7 @@ function image_squeeze_cleanup_orphaned_callback() {
     $deleted_count = 0;
     
     foreach ($orphaned_files as $file) {
-        if (unlink($file)) {
+        if (wp_delete_file($file)) {
             $deleted_files[] = str_replace($base_dir, '', $file); // Only store relative path
             $deleted_count++;
         }

@@ -12,13 +12,15 @@
         percentComplete: 'Progress: %1$d percent complete',
         scanningForOrphaned: 'Scanning for orphaned WebP files...',
         cleanupComplete: 'Cleanup complete!',
-        errorOccurred: 'An error occurred. Please try again.'
+        errorOccurred: 'An error occurred. Please try again.',
+        optimizationCancelled: 'Optimization cancelled.'
     };
     
     // Store references to DOM elements
     const elements = {
         optimizeButton: $('#optimize-images'),
         retryButton: $('#retry-failed-images'),
+        cancelButton: $('#cancel-optimization'),
         progressContainer: $('#progress-container'),
         progressBar: $('#progress-bar'),
         progressText: $('#progress-text'),
@@ -47,6 +49,7 @@
         // Attach event listeners
         elements.optimizeButton.on('click', startOptimization);
         elements.retryButton.on('click', startRetryOptimization);
+        elements.cancelButton.on('click', cancelOptimization);
         
         // Check for existing job on page load
         checkExistingJob();
@@ -91,7 +94,7 @@
                         showProgressUI();
                         updateProgress(jobStatus.done, jobStatus.total);
                         startPolling();
-                        processNextBatch();
+                        processBatch();
                     } 
                     // If job is completed but needs cleanup
                     else if (data.status === 'completed' && data.cleanup_on_next_visit) {
@@ -425,6 +428,7 @@
     function disableButtons() {
         elements.optimizeButton.prop('disabled', true);
         elements.retryButton.prop('disabled', true);
+        elements.cancelButton.prop('disabled', true);
     }
     
     /**
@@ -433,6 +437,7 @@
     function enableButtons() {
         elements.optimizeButton.prop('disabled', false);
         elements.retryButton.prop('disabled', false);
+        elements.cancelButton.prop('disabled', false);
     }
     
     /**
@@ -447,6 +452,65 @@
         
         // Stop polling
         stopPolling();
+    }
+    
+    /**
+     * Cancel the current optimization job
+     */
+    function cancelOptimization() {
+        if (!jobStatus.inProgress) {
+            return; // No job to cancel
+        }
+        
+        // Show loading state on button
+        elements.cancelButton.prop('disabled', true)
+            .html('<span class="dashicons dashicons-update"></span> ' + 'Cancelling...');
+        
+        // Send AJAX request to cancel the job
+        $.ajax({
+            url: imageSqueeze.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'imagesqueeze_cancel_job',
+                security: imageSqueeze.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Stop polling and processing
+                    stopPolling();
+                    
+                    // Update job status
+                    jobStatus.inProgress = false;
+                    jobStatus.status = 'cancelled';
+                    
+                    // Show cancellation message
+                    elements.progressText.html('<span class="dashicons dashicons-dismiss"></span> ' + 
+                                             jsTranslate.optimizationCancelled);
+                    
+                    // Show notice
+                    showNotice(jsTranslate.optimizationCancelled, 'info');
+                    
+                    // Enable buttons
+                    enableButtons();
+                    
+                    // Reload the page after a delay to refresh stats
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    // Show error
+                    showNotice(response.data.message || 'Failed to cancel job', 'error');
+                    elements.cancelButton.prop('disabled', false)
+                        .html('<span class="dashicons dashicons-dismiss"></span> ' + 'Cancel Optimization');
+                }
+            },
+            error: function() {
+                // Show error
+                showNotice('Failed to communicate with the server', 'error');
+                elements.cancelButton.prop('disabled', false)
+                    .html('<span class="dashicons dashicons-dismiss"></span> ' + 'Cancel Optimization');
+            }
+        });
     }
     
     // Initialize when DOM is ready

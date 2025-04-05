@@ -43,8 +43,10 @@ if (is_admin()) {
  * Injects WebP rules into .htaccess if the server is Apache.
  */
 function image_squeeze_activate() {
+    // Check server compatibility
+    $server_software = sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE'] ?? ''));
     // Only proceed if server is Apache.
-    if (isset($_SERVER['SERVER_SOFTWARE']) && stripos($_SERVER['SERVER_SOFTWARE'], 'apache') !== false) {
+    if (stripos($server_software, 'apache') !== false) {
         // WebP rules to inject.
         $webp_rules = "
 # BEGIN Image Squeeze WebP Rules
@@ -95,8 +97,10 @@ function image_squeeze_activate() {
  * Removes WebP rules from .htaccess if the server is Apache.
  */
 function image_squeeze_deactivate() {
+    // Check server compatibility
+    $server_software = sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE'] ?? ''));
     // Only proceed if server is Apache.
-    if (isset($_SERVER['SERVER_SOFTWARE']) && stripos($_SERVER['SERVER_SOFTWARE'], 'apache') !== false) {
+    if (stripos($server_software, 'apache') !== false) {
         // Get uploads directory path.
         $upload_dir = wp_upload_dir();
         $htaccess_path = $upload_dir['basedir'] . '/.htaccess';

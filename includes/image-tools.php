@@ -32,6 +32,7 @@ function image_squeeze_process_image( $attachment_id ) {
     // Check if it's a supported type (JPEG or PNG)
     if ( ! in_array( $mime_type, array( 'image/jpeg', 'image/png' ), true ) ) {
         return new WP_Error( 'unsupported_type', 
+            /* translators: %s is the MIME type of the unsupported image */
             sprintf( __( 'Image type %s is not supported for WebP conversion.', 'image-squeeze' ), $mime_type )
         );
     }
@@ -147,9 +148,18 @@ function _image_squeeze_convert_to_webp( $source_path, $processor ) {
         return new WP_Error( 'source_not_found', __( 'Source image file not found or not readable.', 'image-squeeze' ) );
     }
     
-    // Check if destination directory is writable
+    // Check if destination directory is writable using WP_Filesystem
     $dest_dir = dirname( $source_path );
-    if ( ! is_writable( $dest_dir ) ) {
+    
+    // Initialize the WordPress Filesystem
+    global $wp_filesystem;
+    if ( ! $wp_filesystem ) {
+        require_once ABSPATH . '/wp-admin/includes/file.php';
+        WP_Filesystem();
+    }
+    
+    // Check if destination is writable with WP_Filesystem
+    if ( ! $wp_filesystem->is_writable( $dest_dir ) ) {
         return new WP_Error( 'dest_not_writable', __( 'Destination directory is not writable.', 'image-squeeze' ) );
     }
     

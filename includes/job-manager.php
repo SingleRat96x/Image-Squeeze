@@ -9,6 +9,26 @@
 defined('ABSPATH') || exit;
 
 /**
+ * Helper function to count attachments by meta key and value.
+ *
+ * @param string $meta_key Meta key to check.
+ * @param string $meta_value Meta value to check.
+ * @return int Count of matching attachments.
+ */
+function image_squeeze_count_attachments_by_meta($meta_key, $meta_value) {
+    return count(
+        get_posts(array(
+            'post_type'   => 'attachment',
+            'post_status' => 'inherit',
+            'meta_key'    => $meta_key,
+            'meta_value'  => $meta_value,
+            'fields'      => 'ids',
+            'numberposts' => -1,
+        ))
+    );
+}
+
+/**
  * Create a new optimization job.
  *
  * @param string $type Job type: 'full' or 'retry'.
@@ -26,32 +46,59 @@ function image_squeeze_create_job( $type = 'full' ) {
     $image_ids = array();
     
     if ( $type === 'full' ) {
-        // Get all unoptimized JPEG/PNG images
-        $query = $wpdb->prepare(
-            "SELECT p.ID
-            FROM {$wpdb->posts} p
-            LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_imagesqueeze_optimized'
-            WHERE p.post_type = 'attachment'
-            AND p.post_mime_type IN ('image/jpeg', 'image/png')
-            AND (pm.meta_value IS NULL OR pm.meta_value != '1')
-            ORDER BY p.ID DESC"
-        );
+        // Check cache first
+        $cache_key = 'imagesqueeze_unoptimized_images';
+        $image_ids = wp_cache_get($cache_key);
         
-        $image_ids = $wpdb->get_col( $query );
+        if (false === $image_ids) {
+            // Get all unoptimized JPEG/PNG images using WordPress functions
+            $image_ids = get_posts(array(
+                'post_type'      => 'attachment',
+                'post_status'    => 'inherit',
+                'post_mime_type' => array('image/jpeg', 'image/png'),
+                'fields'         => 'ids',
+                'numberposts'    => -1,
+                'meta_query'     => array(
+                    'relation' => 'OR',
+                    array(
+                        'key'     => '_imagesqueeze_optimized',
+                        'compare' => 'NOT EXISTS'
+                    ),
+                    array(
+                        'key'     => '_imagesqueeze_optimized',
+                        'value'   => '1',
+                        'compare' => '!='
+                    )
+                )
+            ));
+            
+            // Cache the results for 5 minutes
+            wp_cache_set($cache_key, $image_ids, '', 300);
+        }
     } elseif ( $type === 'retry' ) {
-        // Get all images with failed status
-        $query = $wpdb->prepare(
-            "SELECT p.ID
-            FROM {$wpdb->posts} p
-            JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-            WHERE p.post_type = 'attachment'
-            AND p.post_mime_type IN ('image/jpeg', 'image/png')
-            AND pm.meta_key = '_imagesqueeze_status'
-            AND pm.meta_value = 'failed'
-            ORDER BY p.ID DESC"
-        );
+        // Check cache first
+        $cache_key = 'imagesqueeze_failed_images';
+        $image_ids = wp_cache_get($cache_key);
         
-        $image_ids = $wpdb->get_col( $query );
+        if (false === $image_ids) {
+            // Get all images with failed status using WordPress functions
+            $image_ids = get_posts(array(
+                'post_type'      => 'attachment',
+                'post_status'    => 'inherit',
+                'post_mime_type' => array('image/jpeg', 'image/png'),
+                'fields'         => 'ids',
+                'numberposts'    => -1,
+                'meta_query'     => array(
+                    array(
+                        'key'   => '_imagesqueeze_status',
+                        'value' => 'failed'
+                    )
+                )
+            ));
+            
+            // Cache the results for 5 minutes
+            wp_cache_set($cache_key, $image_ids, '', 300);
+        }
     }
     
     // Check if we found any images
@@ -88,33 +135,37 @@ function image_squeeze_create_job( $type = 'full' ) {
  * @return void
  */
 function image_squeeze_log_completed_job( $type ) {
-    global $wpdb;
-    
     // Count optimized images
-    $optimized_count = $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*)
-        FROM {$wpdb->postmeta}
-        WHERE meta_key = '_imagesqueeze_optimized'
-        AND meta_value = '1'"
-    ) );
+    $cache_key = 'imagesqueeze_optimized_count';
+    $optimized_count = wp_cache_get($cache_key);
+    
+    if (false === $optimized_count) {
+        $optimized_count = image_squeeze_count_attachments_by_meta('_imagesqueeze_optimized', '1');
+        
+        // Cache the count for 5 minutes
+        wp_cache_set($cache_key, $optimized_count, '', 300);
+    }
     
     // Count failed images
-    $failed_count = $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*)
-        FROM {$wpdb->postmeta}
-        WHERE meta_key = '_imagesqueeze_status'
-        AND meta_value = 'failed'"
-    ) );
+    $cache_key = 'imagesqueeze_failed_count';
+    $failed_count = wp_cache_get($cache_key);
+    
+    if (false === $failed_count) {
+        $failed_count = image_squeeze_count_attachments_by_meta('_imagesqueeze_status', 'failed');
+        
+        // Cache the count for 5 minutes
+        wp_cache_set($cache_key, $failed_count, '', 300);
+    }
     
     // Get saved bytes from global variable
     $saved_bytes = isset($GLOBALS['imagesqueeze_job_saved_bytes']) ? intval($GLOBALS['imagesqueeze_job_saved_bytes']) : 0;
     
     // Create log entry
     $log_entry = array(
-        'date'      => date( 'Y-m-d' ),
-        'job_type'  => $type,
-        'optimized' => (int) $optimized_count,
-        'failed'    => (int) $failed_count,
+        'date'        => gmdate( 'Y-m-d' ),
+        'job_type'    => $type,
+        'optimized'   => (int) $optimized_count,
+        'failed'      => (int) $failed_count,
         'saved_bytes' => $saved_bytes,
     );
     
@@ -136,10 +187,10 @@ function image_squeeze_log_completed_job( $type ) {
     
     // Also save the last run summary for easy access
     $last_run_summary = array(
-        'date' => date( 'Y-m-d' ),
-        'job_type' => $type,
-        'optimized' => (int) $optimized_count,
-        'failed' => (int) $failed_count,
+        'date'        => gmdate( 'Y-m-d' ),
+        'job_type'    => $type,
+        'optimized'   => (int) $optimized_count,
+        'failed'      => (int) $failed_count,
         'saved_bytes' => $saved_bytes,
     );
     update_option( 'imagesqueeze_last_run_summary', $last_run_summary, false );
@@ -296,6 +347,68 @@ function image_squeeze_ajax_get_progress() {
     ) );
 }
 
+/**
+ * Cancel the current optimization job.
+ *
+ * @return bool|WP_Error True on success, WP_Error on failure.
+ */
+function image_squeeze_cancel_job() {
+    // Get current job
+    $current_job = get_option( 'imagesqueeze_current_job', array() );
+    
+    // Check if there is an active job
+    if ( empty( $current_job ) ) {
+        return new WP_Error( 'no_job', __( 'No active job to cancel.', 'image-squeeze' ) );
+    }
+    
+    // Clear the job queue
+    delete_option( 'imagesqueeze_job_queue' );
+    
+    // Set the job as cancelled
+    $current_job['status'] = 'cancelled';
+    $current_job['cleanup_on_next_visit'] = true;
+    
+    // Update job state
+    update_option( 'imagesqueeze_current_job', $current_job, false );
+    
+    return true;
+}
+
+/**
+ * AJAX handler for cancelling a job.
+ */
+function image_squeeze_ajax_cancel_job() {
+    // Check if user has required capability
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array(
+            'message' => __( 'You do not have permission to perform this action.', 'image-squeeze' )
+        ) );
+    }
+    
+    // Verify nonce
+    if ( ! check_ajax_referer( 'image_squeeze_nonce', 'security', false ) ) {
+        wp_send_json_error( array(
+            'message' => __( 'Security check failed.', 'image-squeeze' )
+        ) );
+    }
+    
+    // Cancel the job
+    $result = image_squeeze_cancel_job();
+    
+    // Check for errors
+    if ( is_wp_error( $result ) ) {
+        wp_send_json_error( array(
+            'message' => $result->get_error_message()
+        ) );
+    }
+    
+    // Return success response
+    wp_send_json_success( array(
+        'message' => __( 'Optimization job cancelled successfully.', 'image-squeeze' )
+    ) );
+}
+
 // Register AJAX actions
 add_action( 'wp_ajax_imagesqueeze_create_job', 'image_squeeze_ajax_create_job' );
-add_action( 'wp_ajax_imagesqueeze_get_progress', 'image_squeeze_ajax_get_progress' ); 
+add_action( 'wp_ajax_imagesqueeze_get_progress', 'image_squeeze_ajax_get_progress' );
+add_action( 'wp_ajax_imagesqueeze_cancel_job', 'image_squeeze_ajax_cancel_job' ); 

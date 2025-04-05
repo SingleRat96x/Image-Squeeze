@@ -11,6 +11,9 @@ defined('ABSPATH') || exit;
 // Include settings UI
 require_once plugin_dir_path(__FILE__) . 'settings-ui.php';
 
+// Include job manager for helper functions
+require_once plugin_dir_path(dirname(__FILE__)) . 'includes/job-manager.php';
+
 /**
  * Register admin menu and pages.
  */
@@ -61,7 +64,19 @@ function image_squeeze_enqueue_admin_assets($hook) {
         'imageSqueeze',
         array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('image_squeeze_nonce')
+            'nonce' => wp_create_nonce('image_squeeze_nonce'),
+            'strings' => array(
+                'optimizationComplete' => __('Optimization complete!', 'image-squeeze'),
+                'optimizationSuccess' => __('Optimization completed successfully!', 'image-squeeze'),
+                /* translators: %1$d is the number of processed images, %2$d is the total number of images */
+                'processing' => __('Processing %1$d of %2$d images', 'image-squeeze'),
+                /* translators: %1$d is the percentage of completion */
+                'percentComplete' => __('Progress: %1$d percent complete', 'image-squeeze'),
+                'scanningForOrphaned' => __('Scanning for orphaned WebP files...', 'image-squeeze'),
+                'cleanupComplete' => __('Cleanup complete!', 'image-squeeze'),
+                'errorOccurred' => __('An error occurred. Please try again.', 'image-squeeze'),
+                'optimizationCancelled' => __('Optimization cancelled.', 'image-squeeze')
+            )
         )
     );
 }
@@ -71,6 +86,9 @@ add_action('admin_enqueue_scripts', 'image_squeeze_enqueue_admin_assets');
  * Render admin page with tabs.
  */
 function image_squeeze_render_admin_page() {
+    // Verify request is valid
+    $verified = isset($_REQUEST['_wpnonce']) ? wp_verify_nonce(sanitize_key($_REQUEST['_wpnonce']), 'image_squeeze_admin_page') : false;
+    
     // Get current tab, default to dashboard
     $current_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'dashboard';
     
@@ -158,44 +176,58 @@ function image_squeeze_render_admin_page() {
  * Render Dashboard tab content.
  */
 function image_squeeze_render_dashboard_tab() {
-    // Get stats from the database
-    global $wpdb;
-    
     // Count total images (JPG/PNG)
     try {
-        $total_images = $wpdb->get_var(
-            "SELECT COUNT(*)
-            FROM {$wpdb->posts}
-            WHERE post_type = 'attachment'
-            AND (post_mime_type = 'image/jpeg' OR post_mime_type = 'image/png')"
-        );
-        $total_images = $total_images ? intval($total_images) : 0;
+        // Check for cached value first
+        $cache_key = 'imagesqueeze_total_images_count';
+        $total_images = wp_cache_get($cache_key);
+        
+        if (false === $total_images) {
+            // Get attachment counts by mime type
+            $attachment_counts = wp_count_attachments();
+            
+            // Count JPEG and PNG images
+            $jpeg_count = isset($attachment_counts->{'image/jpeg'}) ? (int)$attachment_counts->{'image/jpeg'} : 0;
+            $png_count = isset($attachment_counts->{'image/png'}) ? (int)$attachment_counts->{'image/png'} : 0;
+            
+            // Total of JPEG and PNG images
+            $total_images = $jpeg_count + $png_count;
+            
+            // Cache for 5 minutes
+            wp_cache_set($cache_key, $total_images, '', 300);
+        }
     } catch (Exception $e) {
         $total_images = 'Error: ' . $e->getMessage();
     }
     
     // Count optimized images
     try {
-        $optimized_images = $wpdb->get_var(
-            "SELECT COUNT(*)
-            FROM {$wpdb->postmeta}
-            WHERE meta_key = '_imagesqueeze_optimized'
-            AND meta_value = '1'"
-        );
-        $optimized_images = $optimized_images ? intval($optimized_images) : 0;
+        // Check for cached value first
+        $cache_key = 'imagesqueeze_optimized_images_count';
+        $optimized_images = wp_cache_get($cache_key);
+        
+        if (false === $optimized_images) {
+            $optimized_images = image_squeeze_count_attachments_by_meta('_imagesqueeze_optimized', '1');
+            
+            // Cache for 5 minutes
+            wp_cache_set($cache_key, $optimized_images, '', 300);
+        }
     } catch (Exception $e) {
         $optimized_images = 'Error: ' . $e->getMessage();
     }
     
     // Count failed images
     try {
-        $failed_images = $wpdb->get_var(
-            "SELECT COUNT(*)
-            FROM {$wpdb->postmeta}
-            WHERE meta_key = '_imagesqueeze_status'
-            AND meta_value = 'failed'"
-        );
-        $failed_images = $failed_images ? intval($failed_images) : 0;
+        // Check for cached value first
+        $cache_key = 'imagesqueeze_failed_images_count';
+        $failed_images = wp_cache_get($cache_key);
+        
+        if (false === $failed_images) {
+            $failed_images = image_squeeze_count_attachments_by_meta('_imagesqueeze_status', 'failed');
+            
+            // Cache for 5 minutes
+            wp_cache_set($cache_key, $failed_images, '', 300);
+        }
     } catch (Exception $e) {
         $failed_images = 'Error: ' . $e->getMessage();
     }
@@ -330,8 +362,9 @@ function image_squeeze_render_dashboard_tab() {
             
             <div class="imagesqueeze-summary-content">
                 <?php if ($last_run): ?>
-                    <ul class="imagesqueeze-summary-list">
-                        <li class="imagesqueeze-summary-item">
+                    <div class="imagesqueeze-summary-grid">
+                        <!-- Last Run -->
+                        <div class="imagesqueeze-summary-stat-card">
                             <div class="summary-icon">
                                 <span class="dashicons dashicons-calendar-alt"></span>
                             </div>
@@ -339,9 +372,10 @@ function image_squeeze_render_dashboard_tab() {
                                 <span class="summary-label"><?php echo esc_html__('Last Run', 'image-squeeze'); ?></span>
                                 <span class="summary-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($last_run_date))); ?></span>
                             </div>
-                        </li>
+                        </div>
                         
-                        <li class="imagesqueeze-summary-item">
+                        <!-- Optimized Images -->
+                        <div class="imagesqueeze-summary-stat-card">
                             <div class="summary-icon success">
                                 <span class="dashicons dashicons-yes-alt"></span>
                             </div>
@@ -357,9 +391,10 @@ function image_squeeze_render_dashboard_tab() {
                                 </span>
                                 <?php endif; ?>
                             </div>
-                        </li>
+                        </div>
                         
-                        <li class="imagesqueeze-summary-item">
+                        <!-- Space Saved -->
+                        <div class="imagesqueeze-summary-stat-card">
                             <div class="summary-icon">
                                 <span class="dashicons dashicons-database"></span>
                             </div>
@@ -367,8 +402,8 @@ function image_squeeze_render_dashboard_tab() {
                                 <span class="summary-label"><?php echo esc_html__('Space Saved', 'image-squeeze'); ?></span>
                                 <span class="summary-value"><?php echo esc_html(image_squeeze_format_bytes($last_run_saved_bytes)); ?></span>
                             </div>
-                        </li>
-                    </ul>
+                        </div>
+                    </div>
                 <?php else: ?>
                     <div class="imagesqueeze-no-summary">
                         <span class="dashicons dashicons-info"></span>
@@ -386,74 +421,87 @@ function image_squeeze_render_dashboard_tab() {
             </div>
             
             <div class="imagesqueeze-card-content">
-                <?php if ($job_in_progress): ?>
-                    <div class="imagesqueeze-status-badge in-progress">
-                        <span class="dashicons dashicons-update"></span>
-                        <?php echo esc_html__('Status: In Progress', 'image-squeeze'); ?>
-                    </div>
-                <?php else: ?>
-                    <div class="imagesqueeze-status-badge idle">
-                        <span class="dashicons dashicons-marker"></span>
-                        <?php echo esc_html__('Status: Idle', 'image-squeeze'); ?>
-                    </div>
-                <?php endif; ?>
-                
-                <div class="imagesqueeze-action-buttons">
-                    <button id="optimize-images" class="button button-primary" <?php echo $job_in_progress ? 'disabled' : ''; ?>>
-                        <span class="dashicons dashicons-update"></span>
-                        <?php echo esc_html__('Optimize Images Now', 'image-squeeze'); ?>
-                    </button>
-                    
-                    <?php if ($failed_images > 0): ?>
-                        <button id="retry-failed-images" class="button button-secondary" <?php echo $job_in_progress ? 'disabled' : ''; ?>>
-                            <span class="dashicons dashicons-controls-repeat"></span>
-                            <?php echo esc_html__('Retry Failed Images', 'image-squeeze'); ?>
-                        </button>
-                    <?php endif; ?>
-                </div>
-                
-                <div class="imagesqueeze-progress-container" <?php echo $job_in_progress ? '' : 'style="opacity: 0.5"'; ?>>
-                    <div class="imagesqueeze-progress-info">
-                        <p id="progress-text" class="imagesqueeze-progress-label">
-                            <?php 
-                            if ($job_in_progress) {
-                                printf(
-                                    esc_html__('Processing %1$d of %2$d images', 'image-squeeze'),
-                                    intval($current_job['done']),
-                                    intval($current_job['total'])
-                                );
-                            } else {
-                                echo esc_html__('Progress: 0 of 0 images', 'image-squeeze');
-                            }
-                            ?>
-                        </p>
-                        
+                <div class="imagesqueeze-actions-container">
+                    <div class="imagesqueeze-actions-top-row">
                         <?php if ($job_in_progress): ?>
-                            <span class="imagesqueeze-percent-complete">
-                                <?php echo intval(($current_job['done'] / $current_job['total']) * 100); ?>%
-                            </span>
+                            <div class="imagesqueeze-status-badge in-progress">
+                                <span class="dashicons dashicons-update"></span>
+                                <?php echo esc_html__('Status: In Progress', 'image-squeeze'); ?>
+                            </div>
                         <?php else: ?>
-                            <span class="imagesqueeze-percent-complete">0%</span>
+                            <div class="imagesqueeze-status-badge idle">
+                                <span class="dashicons dashicons-marker"></span>
+                                <?php echo esc_html__('Status: Idle', 'image-squeeze'); ?>
+                            </div>
                         <?php endif; ?>
-                    </div>
-                    
-                    <div class="imagesqueeze-progress-bar-container">
-                        <div id="progress-bar" class="imagesqueeze-progress-bar" 
-                             style="width: <?php echo $job_in_progress ? (($current_job['done'] / $current_job['total']) * 100) . '%' : '0%'; ?>">
+                        
+                        <div class="imagesqueeze-action-buttons">
+                            <button id="optimize-images" class="button button-primary" <?php echo $job_in_progress ? 'disabled' : ''; ?>>
+                                <span class="dashicons dashicons-update"></span>
+                                <?php echo esc_html__('Optimize Images Now', 'image-squeeze'); ?>
+                            </button>
+                            
+                            <?php if ($job_in_progress): ?>
+                                <button id="cancel-optimization" class="button button-secondary">
+                                    <span class="dashicons dashicons-dismiss"></span>
+                                    <?php echo esc_html__('Cancel Optimization', 'image-squeeze'); ?>
+                                </button>
+                            <?php endif; ?>
+                            
+                            <?php if ($failed_images > 0): ?>
+                                <button id="retry-failed-images" class="button button-secondary" <?php echo $job_in_progress ? 'disabled' : ''; ?>>
+                                    <span class="dashicons dashicons-controls-repeat"></span>
+                                    <?php echo esc_html__('Retry Failed Images', 'image-squeeze'); ?>
+                                </button>
+                            <?php endif; ?>
                         </div>
                     </div>
                     
-                    <div class="screen-reader-text" aria-live="polite" id="progress-screen-reader-text">
-                        <?php 
-                        if ($job_in_progress) {
-                            printf(
-                                esc_html__('Progress: %1$d percent complete', 'image-squeeze'),
-                                intval(($current_job['done'] / $current_job['total']) * 100)
-                            );
-                        } else {
-                            echo esc_html__('Progress: 0 percent complete', 'image-squeeze');
-                        }
-                        ?>
+                    <!-- Progress Container -->
+                    <div id="progress-container" class="imagesqueeze-progress-container" style="<?php echo $job_in_progress ? '' : 'display: none;'; ?>">
+                        <?php if ($job_in_progress && isset($current_job['done']) && isset($current_job['total']) && $current_job['total'] > 0): ?>
+                            <div class="imagesqueeze-progress-label">
+                                <?php 
+                                $done = intval($current_job['done']);
+                                $total = intval($current_job['total']);
+                                printf(
+                                    /* translators: %1$d is the number of processed images, %2$d is the total number of images */
+                                    esc_html__('Progress: %1$d of %2$d images', 'image-squeeze'),
+                                    esc_html($done),
+                                    esc_html($total)
+                                );
+                                ?>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <div class="imagesqueeze-progress-wrapper">
+                            <div id="progress-bar" class="imagesqueeze-progress-bar"></div>
+                        </div>
+                        
+                        <div id="progress-text" class="imagesqueeze-progress-text" aria-live="polite">
+                            <?php 
+                            if ($job_in_progress && isset($current_job['done']) && isset($current_job['total']) && $current_job['total'] > 0) {
+                                $done = intval($current_job['done']);
+                                $total = intval($current_job['total']);
+                                echo sprintf(
+                                    '<span class="dashicons dashicons-update"></span> ' . 
+                                    /* translators: %1$d is the number of processed images, %2$d is the total number of images */
+                                    esc_html__('Processing %1$d of %2$d images', 'image-squeeze'),
+                                    esc_html($done),
+                                    esc_html($total)
+                                );
+                            }
+                            ?>
+                        </div>
+                        
+                        <!-- For screen readers -->
+                        <span id="progress-screen-reader-text" class="screen-reader-text"></span>
+                    </div>
+                    
+                    <!-- Success/Failure Message (Hidden by default, shown by JS) -->
+                    <div id="optimization-status" class="imagesqueeze-final-status" style="display: none;">
+                        <span class="dashicons dashicons-yes"></span>
+                        <span id="optimization-status-text"></span>
                     </div>
                 </div>
             </div>

@@ -16,17 +16,21 @@ function image_squeeze_register_settings() {
     register_setting(
         'image_squeeze_settings_group',   // Option group
         'imagesqueeze_settings',          // Option name
-        [
-            'sanitize_callback' => 'image_squeeze_sanitize_settings',
-            'default' => [
-                'quality' => 80,
-                'webp_delivery' => true,
-                'retry_on_next' => true,
-                'max_output_size_kb' => 0,
-                'optimize_on_upload' => false,
-            ]
-        ]
+        'image_squeeze_sanitize_settings' // Sanitization callback
     );
+
+    // Set default settings if they don't exist
+    $default_settings = [
+        'quality' => 80,
+        'webp_delivery' => true,
+        'retry_on_next' => true,
+        'max_output_size_kb' => 0,
+        'optimize_on_upload' => false,
+    ];
+    
+    if (false === get_option('imagesqueeze_settings')) {
+        add_option('imagesqueeze_settings', $default_settings);
+    }
 
     // Add settings section
     add_settings_section(
