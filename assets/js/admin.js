@@ -24,7 +24,13 @@
         progressContainer: $('#progress-container'),
         progressBar: $('#progress-bar'),
         progressText: $('#progress-text'),
-        noticesContainer: null // Will be initialized during setup
+        optimizationStatus: $('#optimization-status'),
+        optimizationStatusText: $('#optimization-status-text'),
+        progressLabel: $('.imagesqueeze-progress-label'),
+        statusBadge: $('.imagesqueeze-status-badge'),
+        spinner: $('.imagesqueeze-spinner'),
+        statCards: $('.imagesqueeze-stat-value'),
+        noticesContainer: $('.imagesqueeze-notices')
     };
     
     // Poll timer reference
@@ -43,8 +49,8 @@
      * Initialize the admin UI
      */
     function init() {
-        // Create notices container if it doesn't exist
-        createNoticesContainer();
+        // Hide the optimization status initially
+        elements.optimizationStatus.hide();
         
         // Attach event listeners
         elements.optimizeButton.on('click', startOptimization);
@@ -53,20 +59,6 @@
         
         // Check for existing job on page load
         checkExistingJob();
-    }
-    
-    /**
-     * Create notices container if it doesn't exist
-     */
-    function createNoticesContainer() {
-        // Check if notices container exists
-        if ($('.imagesqueeze-notices').length === 0) {
-            // Create and insert the notices container above the progress container
-            elements.progressContainer.before('<div class="imagesqueeze-notices"></div>');
-        }
-        
-        // Store reference to the notices container
-        elements.noticesContainer = $('.imagesqueeze-notices');
     }
     
     /**
@@ -100,7 +92,45 @@
                     else if (data.status === 'completed' && data.cleanup_on_next_visit) {
                         cleanupJob();
                     }
+                    // If job is complete
+                    else if (data.status === 'completed') {
+                        updateStatusBadgeToComplete();
+                        showCompletedMessage();
+                    }
                 }
+            },
+            error: function(xhr) {
+                // Handle different error types
+                let errorMessage = 'Something went wrong. Please try again.';
+                let isNoImagesError = false;
+                
+                // Try to extract a better error message if available
+                if (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                    errorMessage = xhr.responseJSON.data.message;
+                    
+                    // Check if this is a "no images" error
+                    if (errorMessage.includes('No images found')) {
+                        isNoImagesError = true;
+                    }
+                }
+                
+                if (isNoImagesError) {
+                    // Show a friendly message for no images error
+                    elements.progressContainer.hide();
+                    elements.optimizationStatus.show();
+                    elements.optimizationStatus.find('.dashicons')
+                        .removeClass('dashicons-yes dashicons-update')
+                        .addClass('dashicons-info');
+                    elements.optimizationStatusText.text('No images found for optimization');
+                    
+                    // Also show a notice
+                    showNotice('There are no unoptimized images in your media library. All images are already optimized!', 'info');
+                } else {
+                    // Show regular error notice
+                    showNotice(errorMessage, 'error');
+                }
+                
+                resetUI();
             }
         });
     }
@@ -132,8 +162,9 @@
      * @param {string} jobType - Type of job ('full' or 'retry')
      */
     function startJob(jobType) {
-        // Clear any previous notices
+        // Clear any previous notices and status messages
         clearNotices();
+        elements.optimizationStatus.hide();
         
         // Update UI state
         disableButtons();
@@ -153,6 +184,9 @@
                     jobStatus.inProgress = true;
                     jobStatus.status = 'in_progress';
                     
+                    // Update status badge to in-progress
+                    updateStatusBadgeToInProgress();
+                    
                     // Show progress UI
                     showProgressUI();
                     
@@ -167,7 +201,24 @@
                 } else {
                     // Show error and reset UI
                     const errorMessage = response.data.message || 'Failed to create job';
-                    showNotice(errorMessage, 'error');
+                    
+                    // Show special notice for "no images" error
+                    if (response.data.message && response.data.message.includes('No images found')) {
+                        // Display message in a more prominent way
+                        elements.progressContainer.hide();
+                        elements.optimizationStatus.show();
+                        elements.optimizationStatus.find('.dashicons')
+                            .removeClass('dashicons-yes dashicons-update')
+                            .addClass('dashicons-info');
+                        elements.optimizationStatusText.text('No images found for optimization');
+                        
+                        // Also show a notice
+                        showNotice('There are no unoptimized images in your media library. All images are already optimized!', 'info');
+                    } else {
+                        // Show regular error notice
+                        showNotice(errorMessage, 'error');
+                    }
+                    
                     resetUI();
                 }
             },
@@ -199,11 +250,7 @@
         const noticeClass = 'notice notice-' + (type || 'info');
         
         // Create and append the notice
-        const $notice = $('<div class="' + noticeClass + '"><p>' + message + '</p></div>');
-        elements.noticesContainer.append($notice);
-        
-        // Make sure the notice is visible
-        elements.noticesContainer.show();
+        elements.noticesContainer.append('<div class="' + noticeClass + '"><p>' + message + '</p></div>');
     }
     
     /**
@@ -211,7 +258,7 @@
      */
     function clearNotices() {
         if (elements.noticesContainer) {
-            elements.noticesContainer.empty().hide();
+            elements.noticesContainer.empty();
         }
     }
     
@@ -219,13 +266,11 @@
      * Start polling for job progress
      */
     function startPolling() {
-        // Clear any existing timer
-        if (pollTimer) {
-            clearInterval(pollTimer);
-        }
+        // Stop any existing poll
+        stopPolling();
         
-        // Set up polling every 2 seconds
-        pollTimer = setInterval(pollJobProgress, 2000);
+        // Start a new poll interval
+        pollTimer = setInterval(pollJobProgress, 5000); // Poll every 5 seconds
     }
     
     /**
@@ -239,9 +284,14 @@
     }
     
     /**
-     * Poll job progress from the server
+     * Poll for job progress
      */
     function pollJobProgress() {
+        if (!jobStatus.inProgress) {
+            stopPolling(); // Stop polling if job is not in progress
+            return;
+        }
+        
         $.ajax({
             url: imageSqueeze.ajaxUrl,
             type: 'POST',
@@ -257,28 +307,55 @@
                     jobStatus.status = data.status;
                     jobStatus.done = parseInt(data.done) || 0;
                     jobStatus.total = parseInt(data.total) || 0;
-                    jobStatus.cleanup = data.cleanup_on_next_visit;
                     
-                    // Update UI
+                    // Update progress UI
                     updateProgress(jobStatus.done, jobStatus.total);
                     
-                    // If job is complete, stop polling
+                    // If job is completed, finish up
                     if (data.status === 'completed') {
-                        jobStatus.inProgress = false;
                         completeJob();
                     }
+                    // If job is cancelled, show cancelled state
+                    else if (data.status === 'cancelled') {
+                        stopPolling();
+                        jobStatus.inProgress = false;
+                        resetUI();
+                        
+                        // Show cancellation message in our custom UI instead of a notice
+                        elements.progressContainer.hide();
+                        elements.optimizationStatus.show();
+                        elements.optimizationStatus.find('.dashicons')
+                            .removeClass('dashicons-yes dashicons-update')
+                            .addClass('dashicons-dismiss');
+                        elements.optimizationStatusText.text(jsTranslate.optimizationCancelled);
+                    }
                 } else {
-                    // Error occurred, stop polling
+                    // Show error if there's an issue with the response but don't use notice
                     stopPolling();
-                    showNotice(response.data.message || 'Failed to get job progress', 'error');
+                    jobStatus.inProgress = false;
                     resetUI();
+                    
+                    // Show error in our custom UI
+                    elements.progressContainer.hide();
+                    elements.optimizationStatus.show();
+                    elements.optimizationStatus.find('.dashicons')
+                        .removeClass('dashicons-yes dashicons-update')
+                        .addClass('dashicons-warning');
+                    elements.optimizationStatusText.text(jsTranslate.errorOccurred);
                 }
             },
             error: function() {
-                // Communication error, stop polling
+                // Handle network errors in our custom UI
                 stopPolling();
-                showNotice('Failed to communicate with the server', 'error');
+                jobStatus.inProgress = false;
                 resetUI();
+                
+                elements.progressContainer.hide();
+                elements.optimizationStatus.show();
+                elements.optimizationStatus.find('.dashicons')
+                    .removeClass('dashicons-yes dashicons-update')
+                    .addClass('dashicons-warning');
+                elements.optimizationStatusText.text('Network error. Please try again.');
             }
         });
     }
@@ -288,7 +365,7 @@
      */
     function processBatch() {
         if (!jobStatus.inProgress) {
-            return; // Don't process if no job is in progress
+            return; // Don't process if job is not in progress
         }
         
         $.ajax({
@@ -296,42 +373,67 @@
             type: 'POST',
             data: {
                 action: 'imagesqueeze_process_batch',
-                security: imageSqueeze.nonce,
-                batch_size: 10
+                security: imageSqueeze.nonce
             },
             success: function(response) {
                 if (response.success) {
-                    // Update progress
-                    const done = parseInt(response.data.done) || 0;
-                    const remaining = parseInt(response.data.remaining) || 0;
-                    const total = done + remaining;
-                    const status = response.data.status || 'in_progress';
+                    const data = response.data;
                     
-                    jobStatus.done = done;
-                    jobStatus.total = total;
-                    jobStatus.status = status;
+                    // Update job status
+                    jobStatus.done = parseInt(data.done) || jobStatus.done;
+                    jobStatus.total = parseInt(data.total) || jobStatus.total;
+                    jobStatus.status = data.status;
                     
-                    updateProgress(done, total);
+                    // Update progress UI
+                    updateProgress(jobStatus.done, jobStatus.total);
                     
-                    // Check if job is complete
-                    if (status === 'completed' || remaining === 0) {
-                        jobStatus.inProgress = false;
+                    // If there are more batches to process
+                    if (data.status === 'in_progress') {
+                        // Continue processing
+                        processBatch();
+                    } else if (data.status === 'completed') {
+                        // Job completed successfully
                         completeJob();
-                    } else if (jobStatus.inProgress) {
-                        // Continue processing batches with a slight delay
-                        setTimeout(processBatch, 1000);
+                    } else if (data.status === 'cancelled') {
+                        // Job was cancelled
+                        stopPolling();
+                        jobStatus.inProgress = false;
+                        resetUI();
+                        
+                        // Show cancellation message in our custom UI
+                        elements.progressContainer.hide();
+                        elements.optimizationStatus.show();
+                        elements.optimizationStatus.find('.dashicons')
+                            .removeClass('dashicons-yes dashicons-update')
+                            .addClass('dashicons-dismiss');
+                        elements.optimizationStatusText.text(jsTranslate.optimizationCancelled);
                     }
                 } else {
-                    // Show error
-                    showNotice(response.data.message || 'Failed to process batch', 'error');
+                    // Error occurred - show in our custom UI
                     jobStatus.inProgress = false;
+                    stopPolling();
                     resetUI();
+                    
+                    elements.progressContainer.hide();
+                    elements.optimizationStatus.show();
+                    elements.optimizationStatus.find('.dashicons')
+                        .removeClass('dashicons-yes dashicons-update')
+                        .addClass('dashicons-warning');
+                    elements.optimizationStatusText.text(response.data.message || jsTranslate.errorOccurred);
                 }
             },
             error: function() {
-                showNotice('Failed to communicate with the server', 'error');
+                // Network or server error - show in our custom UI
                 jobStatus.inProgress = false;
+                stopPolling();
                 resetUI();
+                
+                elements.progressContainer.hide();
+                elements.optimizationStatus.show();
+                elements.optimizationStatus.find('.dashicons')
+                    .removeClass('dashicons-yes dashicons-update')
+                    .addClass('dashicons-warning');
+                elements.optimizationStatusText.text('Network error. Please try again.');
             }
         });
     }
@@ -345,34 +447,63 @@
         // Calculate percentage (avoid division by zero)
         const percentage = total > 0 ? Math.round((done / total) * 100) : 0;
         
-        // Update progress bar with smooth animation
-        elements.progressBar.css({
-            'width': percentage + '%',
-            'transition': 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
-        });
+        // Update progress label
+        if (elements.progressLabel && elements.progressLabel.length) {
+            elements.progressLabel.text('Compressed ' + done + ' of ' + total + ' images');
+        }
         
-        // Update progress text
-        if (jobStatus.status === 'completed') {
-            elements.progressText.html('<span class="dashicons dashicons-yes-alt"></span> ' + 
-                                      jsTranslate.optimizationComplete);
-            
-            // Update screen reader text
-            $('#progress-screen-reader-text').text(jsTranslate.optimizationComplete);
-            
-            // Show success notice if not already shown
-            if (elements.noticesContainer && !elements.noticesContainer.find('.notice-success').length) {
-                showNotice(jsTranslate.optimizationSuccess, 'success');
-            }
-        } else {
-            const progressHtml = '<span class="dashicons dashicons-update"></span> ' + 
-                               jsTranslate.processing.replace('%1$d', done).replace('%2$d', total);
-            elements.progressText.html(progressHtml);
-            
-            // Update screen reader text
+        // Update progress text (percentage)
+        if (elements.progressText && elements.progressText.length) {
+            elements.progressText.text(percentage + '% complete');
+        }
+        
+        // Update screen reader text
+        if ($('#progress-screen-reader-text').length) {
             $('#progress-screen-reader-text').text(
                 jsTranslate.percentComplete.replace('%1$d', percentage)
             );
         }
+        
+        // If job is completed, update UI accordingly
+        if (jobStatus.status === 'completed') {
+            // Hide spinner, show success message
+            elements.progressContainer.hide();
+            showCompletedMessage();
+            updateStatusBadgeToComplete();
+        }
+    }
+    
+    /**
+     * Show the completion message
+     */
+    function showCompletedMessage() {
+        // Remove any existing notices
+        clearNotices();
+        
+        // Show the custom success message
+        elements.optimizationStatus.show();
+        elements.optimizationStatusText.text(jsTranslate.optimizationComplete);
+        
+        // Make sure we're using the checkmark icon
+        elements.optimizationStatus.find('.dashicons')
+            .removeClass('dashicons-update')
+            .addClass('dashicons-yes');
+    }
+    
+    /**
+     * Update status badge to "In Progress"
+     */
+    function updateStatusBadgeToInProgress() {
+        elements.statusBadge.removeClass('idle complete').addClass('in-progress');
+        elements.statusBadge.html('<span class="dashicons dashicons-update"></span> Optimizing...');
+    }
+    
+    /**
+     * Update status badge to "Complete"
+     */
+    function updateStatusBadgeToComplete() {
+        elements.statusBadge.removeClass('idle in-progress').addClass('complete');
+        elements.statusBadge.html('<span class="dashicons dashicons-yes"></span> Complete');
     }
     
     /**
@@ -392,15 +523,338 @@
         jobStatus.inProgress = false;
         jobStatus.status = 'completed';
         
-        // Show completion message
-        elements.progressText.text('Optimization complete!');
+        // Show completion message with checkmark icon
+        showCompletedMessage();
+        updateStatusBadgeToComplete();
+        
+        // Refresh dashboard stats to update the numbers
+        refreshDashboardStats();
+    }
+    
+    /**
+     * Refresh dashboard stats via AJAX
+     */
+    function refreshDashboardStats() {
+        console.log('Refreshing dashboard stats - started');
+        
+        // Show a subtle loading indicator on all stat values
+        const $statValues = $('.imagesqueeze-stat-value, .summary-value');
+        $statValues.css('opacity', '0.5');
+        
+        // Add a temporary class to track updated elements
+        $('.imagesqueeze-stat-card, .imagesqueeze-summary-stat-card').removeClass('updated-stats');
+        
+        // Log the nonce value for debugging (masked for security)
+        const nonce = imageSqueeze.nonce;
+        console.log('Using nonce: ' + (nonce ? nonce.substring(0, 3) + '...' : 'undefined'));
+        
+        // Prepare the AJAX data
+        const ajaxData = {
+            action: 'imagesqueeze_get_dashboard_stats',
+            security: nonce
+        };
+        
+        console.log('Sending AJAX request to:', imageSqueeze.ajaxUrl);
+        console.log('AJAX data:', ajaxData);
+        
+        $.ajax({
+            url: imageSqueeze.ajaxUrl,
+            type: 'POST',
+            data: ajaxData,
+            dataType: 'json',
+            success: function(response) {
+                console.log('Stats AJAX response:', response);
+                
+                if (response && response.success && response.data) {
+                    // Log all fields for debugging
+                    console.log('Received data fields:', Object.keys(response.data).join(', '));
+                    
+                    // Update stat cards in the Image Optimization Overview section
+                    updateOverviewStats(response.data);
+                    
+                    // Check if the Last Optimization Summary section is showing "No optimization jobs" but we just completed one
+                    if ($('.imagesqueeze-no-summary').is(':visible') && response.data.last_run_date) {
+                        console.log('Updating summary section to show job results');
+                        updateSummarySection(response.data);
+                    } else {
+                        // Just update the existing summary stats
+                        updateSummaryStats(response.data);
+                    }
+                    
+                    // If any stat cards weren't updated, log for debugging
+                    $('.imagesqueeze-stat-card:not(.updated-stats), .imagesqueeze-summary-stat-card:not(.updated-stats)').each(function() {
+                        const $card = $(this);
+                        const title = $card.find('.imagesqueeze-stat-title, .summary-label').text();
+                        console.log('Stat card not updated:', title);
+                    });
+                    
+                    // Restore opacity after updating
+                    $statValues.css('opacity', '1');
+                    
+                    console.log('Dashboard stats refresh completed successfully');
+                } else {
+                    console.error('Failed to get stats data:', response);
+                    $statValues.css('opacity', '1');
+                    
+                    // Show a more detailed error message
+                    let errorMsg = 'Failed to update stats. Try refreshing the page.';
+                    let errorCode = '';
+                    
+                    if (response && response.data) {
+                        if (response.data.message) {
+                            errorMsg = response.data.message;
+                        }
+                        if (response.data.code) {
+                            errorCode = ' (Code: ' + response.data.code + ')';
+                            console.error('Error code:', response.data.code);
+                        }
+                    }
+                    
+                    showNotice(errorMsg + errorCode, 'warning');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX error getting stats:', error);
+                console.error('Status:', status);
+                console.error('Status code:', xhr.status);
+                console.error('Response:', xhr.responseText || 'Empty response');
+                
+                // Restore opacity on error
+                $statValues.css('opacity', '1');
+                
+                // Try to parse the response if it's JSON
+                let errorDetail = '';
+                try {
+                    if (xhr.responseText) {
+                        const jsonResponse = JSON.parse(xhr.responseText);
+                        if (jsonResponse && jsonResponse.data && jsonResponse.data.message) {
+                            errorDetail = ': ' + jsonResponse.data.message;
+                        }
+                    }
+                } catch (e) {
+                    console.log('Could not parse error response as JSON');
+                }
+                
+                // Determine a more helpful error message
+                let errorMsg = 'Failed to communicate with the server. Try refreshing the page.';
+                if (xhr.status === 400) {
+                    errorMsg = 'Bad Request: The server rejected the stats request' + errorDetail + '. Try refreshing the page.';
+                } else if (xhr.status === 403) {
+                    errorMsg = 'Permission denied' + errorDetail + '. Your session may have expired. Try refreshing the page.';
+                } else if (xhr.status === 404) {
+                    errorMsg = 'AJAX endpoint not found. The plugin may not be properly installed.';
+                } else if (xhr.status === 500) {
+                    errorMsg = 'Server error' + errorDetail + '. Check your server logs for details.';
+                }
+                
+                showNotice(errorMsg, 'error');
+            }
+        });
+    }
+    
+    /**
+     * Update the Image Optimization Overview stats
+     * @param {Object} data - The stats data from the server
+     */
+    function updateOverviewStats(data) {
+        if (!data) {
+            console.error('No data provided to updateOverviewStats');
+            return;
+        }
+        
+        console.log('Updating overview stats with data:', data);
+        
+        // Update each card directly with specific data fields
+        updateStatCard('Optimized', data.optimized_images);
+        updateStatCard('Space Saved', data.total_saved, 'Last Run');
+        updateStatCard('Failed', data.failed_images);
+        
+        // Check for additional stats to update
+        if (data.last_run_saved) {
+            updateStatCard('Last Run', data.last_run_saved);
+        }
+        
+        // Log any missing data fields for debugging
+        if (data.optimized_images === undefined) console.log('Missing: optimized_images');
+        if (data.total_saved === undefined) console.log('Missing: total_saved');
+        if (data.failed_images === undefined) console.log('Missing: failed_images');
+    }
+    
+    /**
+     * Helper function to update a specific stat card by title text
+     * @param {string} titleText - Text in the title to match (partial match)
+     * @param {string} newValue - New value to set
+     * @param {string} excludeText - Optional text to exclude from matching
+     */
+    function updateStatCard(titleText, newValue, excludeText = null) {
+        if (newValue === undefined || newValue === null) {
+            console.log(`Skipping update for ${titleText} - value is undefined`);
+            return;
+        }
+        
+        let updated = false;
+        $('.imagesqueeze-stat-card').each(function() {
+            const $card = $(this);
+            const $title = $card.find('.imagesqueeze-stat-title');
+            const titleContent = $title.text().trim();
+            
+            if (titleContent.includes(titleText)) {
+                // Skip if excludeText is provided and the title contains it
+                if (excludeText && titleContent.includes(excludeText)) {
+                    return;
+                }
+                
+                const $value = $card.find('.imagesqueeze-stat-value');
+                if ($value.length === 0) {
+                    console.log(`Found card with title "${titleText}" but no value element`);
+                    return;
+                }
+                
+                // Convert to string for proper comparison
+                const oldValue = $value.text().trim();
+                const newValueStr = String(newValue).trim();
+                
+                // Only update if the value has changed
+                if (oldValue !== newValueStr) {
+                    console.log(`Updating ${titleText} from "${oldValue}" to "${newValueStr}"`);
+                    $value.text(newValueStr);
+                    
+                    // Add a brief highlight effect
+                    $card.css('background-color', '#f0f6fc');
+                    setTimeout(function() {
+                        $card.css('background-color', '');
+                    }, 1000);
+                } else {
+                    console.log(`No change needed for ${titleText}: ${oldValue}`);
+                }
+                
+                $card.addClass('updated-stats');
+                updated = true;
+            }
+        });
+        
+        if (!updated) {
+            console.log(`No card found with title containing "${titleText}"`);
+        }
+    }
+    
+    /**
+     * Update the Last Optimization Summary stats
+     * @param {Object} data - The stats data from the server
+     */
+    function updateSummaryStats(data) {
+        if (!data) {
+            console.error('No valid data for summary stats update');
+            return;
+        }
+        
+        console.log('Updating summary stats with data:', {
+            date: data.last_run_date,
+            optimized: data.last_run_optimized,
+            saved: data.last_run_saved,
+            failed: data.last_run_failed
+        });
+        
+        // Only proceed if we have a last run date
+        if (!data.last_run_date) {
+            console.log('No last_run_date provided, skipping summary update');
+            return;
+        }
+        
+        // Make sure the optimized value is visible and properly formatted
+        if (data.last_run_optimized !== undefined) {
+            console.log(`Last run optimized count from server: ${data.last_run_optimized}`);
+        } else {
+            console.warn('Missing last_run_optimized count in data from server');
+        }
+        
+        // Update each field directly
+        updateSummaryField('Last Run', data.last_run_date);
+        updateSummaryField('Optimized Images', data.last_run_optimized);
+        updateSummaryField('Space Saved', data.last_run_saved);
+        
+        // If there's a failed count in the summary, update it
+        if (data.last_run_failed !== undefined) {
+            // Handle failed count specially as it might be in a warning box
+            const $warningEl = $('.summary-value.warning strong');
+            if ($warningEl.length) {
+                const oldValue = $warningEl.text().trim();
+                const newValue = String(data.last_run_failed).trim();
+                
+                if (oldValue !== newValue) {
+                    console.log(`Updating failed count from "${oldValue}" to "${newValue}"`);
+                    $warningEl.text(newValue);
+                    
+                    // Highlight the warning
+                    $warningEl.closest('.imagesqueeze-summary-stat-card').addClass('updated-stats')
+                        .css('background-color', '#fcf9e8');
+                    setTimeout(function() {
+                        $warningEl.closest('.imagesqueeze-summary-stat-card').css('background-color', '');
+                    }, 1000);
+                }
+            } else if (parseInt(data.last_run_failed) > 0) {
+                console.log('Failed count > 0 but warning element not found in DOM');
+            }
+        }
+    }
+    
+    /**
+     * Helper function to update a specific summary field by label text
+     * @param {string} labelText - Text in the label to match
+     * @param {string} newValue - New value to set
+     */
+    function updateSummaryField(labelText, newValue) {
+        if (newValue === undefined || newValue === null) {
+            console.log(`Skipping update for summary ${labelText} - value is undefined`);
+            return;
+        }
+        
+        let updated = false;
+        $('.imagesqueeze-summary-stat-card').each(function() {
+            const $card = $(this);
+            const $label = $card.find('.summary-label');
+            const labelContent = $label.text().trim();
+            
+            if (labelContent.includes(labelText)) {
+                const $value = $card.find('.summary-value').first(); // Get only the main value
+                if ($value.length === 0) {
+                    console.log(`Found summary card with label "${labelText}" but no value element`);
+                    return;
+                }
+                
+                // Convert to string for proper comparison
+                const oldValue = $value.text().trim();
+                const newValueStr = String(newValue).trim();
+                
+                // Only update if the value has changed
+                if (oldValue !== newValueStr) {
+                    console.log(`Updating summary ${labelText} from "${oldValue}" to "${newValueStr}"`);
+                    $value.text(newValueStr);
+                    
+                    // Add a brief highlight effect
+                    $card.css('background-color', '#edf9ee');
+                    setTimeout(function() {
+                        $card.css('background-color', '');
+                    }, 1000);
+                } else {
+                    console.log(`No change needed for summary ${labelText}: ${oldValue}`);
+                }
+                
+                $card.addClass('updated-stats');
+                updated = true;
+            }
+        });
+        
+        if (!updated) {
+            console.log(`No summary card found with label containing "${labelText}"`);
+        }
     }
     
     /**
      * Clean up job after completion
      */
     function cleanupJob() {
-        // Make AJAX request to get progress (which will trigger cleanup)
+        // Make AJAX request to clean up completed job
         $.ajax({
             url: imageSqueeze.ajaxUrl,
             type: 'POST',
@@ -408,9 +862,9 @@
                 action: 'imagesqueeze_get_progress',
                 security: imageSqueeze.nonce
             },
-            complete: function() {
-                // Refresh the page to show updated stats
-                window.location.reload();
+            success: function() {
+                // After cleanup, refresh stats instead of reloading the page
+                refreshDashboardStats();
             }
         });
     }
@@ -420,6 +874,7 @@
      */
     function showProgressUI() {
         elements.progressContainer.show();
+        elements.optimizationStatus.hide();
     }
     
     /**
@@ -427,8 +882,9 @@
      */
     function disableButtons() {
         elements.optimizeButton.prop('disabled', true);
-        elements.retryButton.prop('disabled', true);
-        elements.cancelButton.prop('disabled', true);
+        if (elements.retryButton.length) {
+            elements.retryButton.prop('disabled', true);
+        }
     }
     
     /**
@@ -436,8 +892,9 @@
      */
     function enableButtons() {
         elements.optimizeButton.prop('disabled', false);
-        elements.retryButton.prop('disabled', false);
-        elements.cancelButton.prop('disabled', false);
+        if (elements.retryButton.length) {
+            elements.retryButton.prop('disabled', false);
+        }
     }
     
     /**
@@ -483,20 +940,20 @@
                     jobStatus.inProgress = false;
                     jobStatus.status = 'cancelled';
                     
-                    // Show cancellation message
-                    elements.progressText.html('<span class="dashicons dashicons-dismiss"></span> ' + 
-                                             jsTranslate.optimizationCancelled);
+                    // Update UI
+                    elements.progressContainer.hide();
+                    elements.optimizationStatus.show().find('#optimization-status-text').text(jsTranslate.optimizationCancelled);
+                    elements.optimizationStatus.find('.dashicons').removeClass('dashicons-yes').addClass('dashicons-dismiss');
                     
-                    // Show notice
-                    showNotice(jsTranslate.optimizationCancelled, 'info');
+                    // Update status badge
+                    elements.statusBadge.removeClass('in-progress complete').addClass('idle');
+                    elements.statusBadge.html('<span class="dashicons dashicons-marker"></span> Ready for Optimization');
                     
                     // Enable buttons
                     enableButtons();
                     
-                    // Reload the page after a delay to refresh stats
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 2000);
+                    // Refresh stats
+                    refreshDashboardStats();
                 } else {
                     // Show error
                     showNotice(response.data.message || 'Failed to cancel job', 'error');
@@ -511,6 +968,88 @@
                     .html('<span class="dashicons dashicons-dismiss"></span> ' + 'Cancel Optimization');
             }
         });
+    }
+    
+    /**
+     * Update the summary section to show optimization results
+     * @param {Object} data - The stats data from the server
+     */
+    function updateSummarySection(data) {
+        const $summaryContent = $('.imagesqueeze-summary-content');
+        const $noSummary = $('.imagesqueeze-no-summary');
+        
+        // Check if we have the necessary data
+        if (!data.last_run_date) {
+            console.log('Cannot update summary section: missing last_run_date');
+            return;
+        }
+        
+        console.log('Replacing no-summary message with actual summary grid');
+        console.log('Last run date from server:', data.last_run_date);
+        
+        // Create summary grid HTML with special formatting for the date
+        const summaryGridHtml = `
+            <div class="imagesqueeze-summary-grid">
+                <!-- Last Run -->
+                <div class="imagesqueeze-summary-stat-card">
+                    <div class="summary-icon">
+                        <span class="dashicons dashicons-calendar-alt"></span>
+                    </div>
+                    <div class="summary-info">
+                        <span class="summary-label">Last Run</span>
+                        <span class="summary-value">${data.last_run_date}</span>
+                    </div>
+                </div>
+                
+                <!-- Optimized Images -->
+                <div class="imagesqueeze-summary-stat-card">
+                    <div class="summary-icon success">
+                        <span class="dashicons dashicons-yes-alt"></span>
+                    </div>
+                    <div class="summary-info">
+                        <span class="summary-label">Optimized Images</span>
+                        <span class="summary-value">${data.last_run_optimized}</span>
+                        ${parseInt(data.last_run_failed) > 0 ? `
+                        <span class="summary-value warning">
+                            <span class="dashicons dashicons-warning"></span>
+                            Failed: <strong>${data.last_run_failed}</strong>
+                        </span>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <!-- Space Saved -->
+                <div class="imagesqueeze-summary-stat-card">
+                    <div class="summary-icon">
+                        <span class="dashicons dashicons-database"></span>
+                    </div>
+                    <div class="summary-info">
+                        <span class="summary-label">Space Saved</span>
+                        <span class="summary-value">${data.last_run_saved}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Hide the no-summary message
+        $noSummary.hide();
+        
+        // Add the summary grid to the container
+        $summaryContent.append(summaryGridHtml);
+        
+        // Apply a highlight effect to the new content
+        const $newGrid = $summaryContent.find('.imagesqueeze-summary-grid');
+        $newGrid.css({
+            'background-color': '#f0f9ff',
+            'transition': 'background-color 1s'
+        });
+        
+        // Remove highlight after a moment
+        setTimeout(function() {
+            $newGrid.css('background-color', '');
+        }, 1500);
+        
+        console.log('Summary section updated with job results');
     }
     
     // Initialize when DOM is ready
@@ -534,162 +1073,6 @@
             // Let the link work normally for page navigation
             // Server-side tab handling will take over on page reload
             return true;
-        });
-    });
-    
-    // Batch Optimization
-    $('#imagesqueeze-optimize-button').on('click', function() {
-        var $button = $(this);
-        var $status = $('#imagesqueeze-status');
-        var $progress = $('#imagesqueeze-progress');
-        var $progressBar = $progress.find('.progress-bar');
-        
-        $button.prop('disabled', true);
-        $status.html('<p>Starting batch optimization...</p>');
-        $progress.show();
-        
-        processBatch(1, 0, 0, 0);
-        
-        function processBatch(page, total, optimized, failed) {
-            $.ajax({
-                url: ajaxurl,
-                type: 'POST',
-                data: {
-                    action: 'imagesqueeze_batch_optimize',
-                    page: page,
-                    security: imageSqueeze.nonce
-                },
-                success: function(response) {
-                    if (response.success) {
-                        var data = response.data;
-                        
-                        // Update progress
-                        var processedTotal = optimized + failed + data.processed;
-                        var newOptimized = optimized + data.optimized;
-                        var newFailed = failed + data.failed;
-                        
-                        // Update the total if this is page 1
-                        if (page === 1) {
-                            total = data.total;
-                        }
-                        
-                        // Update progress bar
-                        var percentComplete = total > 0 ? Math.round((processedTotal / total) * 100) : 0;
-                        $progressBar.css('width', percentComplete + '%');
-                        
-                        // Update status message
-                        $status.html('<p>Processing: ' + processedTotal + ' of ' + total + ' images (' + percentComplete + '%)');
-                        $status.append('<p>Optimized: ' + newOptimized + ' | Failed: ' + newFailed + '</p>');
-                        
-                        // If there are more images to process, continue with the next batch
-                        if (data.hasMore) {
-                            processBatch(page + 1, total, newOptimized, newFailed);
-                        } else {
-                            // All done
-                            $button.prop('disabled', false);
-                            $status.append('<p><strong>Batch optimization complete!</strong></p>');
-                            
-                            // Reload the page to update the stats
-                            setTimeout(function() {
-                                location.reload();
-                            }, 3000);
-                        }
-                    } else {
-                        // Error occurred
-                        $button.prop('disabled', false);
-                        $status.html('<p class="notice notice-error">Error: ' + response.data + '</p>');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    $button.prop('disabled', false);
-                    $status.html('<p class="notice notice-error">Error: ' + error + '</p>');
-                }
-            });
-        }
-    });
-    
-    // Retry Failed Images
-    $('#imagesqueeze-retry-button').on('click', function() {
-        var $button = $(this);
-        var $status = $('#imagesqueeze-retry-status');
-        
-        $button.prop('disabled', true);
-        $status.html('<p>Retrying failed images...</p>');
-        
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'imagesqueeze_retry_failed',
-                security: imageSqueeze.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    $status.html('<p class="notice notice-success">Success! Retried ' + response.data.total + ' images. ' +
-                                'Optimized: ' + response.data.optimized + ' | Still failed: ' + response.data.failed + '</p>');
-                    
-                    // Reload the page after a short delay to update stats
-                    setTimeout(function() {
-                        location.reload();
-                    }, 3000);
-                } else {
-                    $button.prop('disabled', false);
-                    $status.html('<p class="notice notice-error">Error: ' + response.data + '</p>');
-                }
-            },
-            error: function(xhr, status, error) {
-                $button.prop('disabled', false);
-                $status.html('<p class="notice notice-error">Error: ' + error + '</p>');
-            }
-        });
-    });
-    
-    // Cleanup Orphaned WebP Files
-    $('#imagesqueeze-cleanup-button').on('click', function() {
-        var $button = $(this);
-        var $results = $('#imagesqueeze-cleanup-results');
-        
-        $button.prop('disabled', true);
-        $results.show().html('<p class="imagesqueeze-cleanup-status">Scanning for orphaned WebP files...</p>');
-        
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'imagesqueeze_cleanup_orphaned',
-                security: imageSqueeze.nonce
-            },
-            success: function(response) {
-                $button.prop('disabled', false);
-                
-                if (response.success) {
-                    var html = '<p class="imagesqueeze-cleanup-status success-message">Cleanup complete!</p>';
-                    
-                    if (response.data.deleted_count > 0) {
-                        html += '<p>Deleted ' + response.data.deleted_count + ' orphaned WebP files.</p>';
-                        
-                        if (response.data.files && response.data.files.length > 0) {
-                            html += '<div class="imagesqueeze-cleanup-files"><p>Deleted files:</p><ul>';
-                            
-                            for (var i = 0; i < response.data.files.length; i++) {
-                                html += '<li>' + response.data.files[i] + '</li>';
-                            }
-                            
-                            html += '</ul></div>';
-                        }
-                    } else {
-                        html += '<p>No orphaned WebP files were found. Your media library is clean!</p>';
-                    }
-                    
-                    $results.html(html);
-                } else {
-                    $results.html('<p class="notice notice-error">Error: ' + response.data + '</p>');
-                }
-            },
-            error: function(xhr, status, error) {
-                $button.prop('disabled', false);
-                $results.html('<p class="notice notice-error">Error: ' + error + '</p>');
-            }
         });
     });
 })(jQuery); 

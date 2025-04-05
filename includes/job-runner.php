@@ -42,11 +42,21 @@ function image_squeeze_process_batch( $batch_size = 10 ) {
         // Process the image
         $result = image_squeeze_process_image( $attachment_id );
         
-        // Increment counters regardless of success/failure
+        // Increment counters based on result
         $processed_count++;
-        $current_job['done']++;
         
-        // If there was an error, the error metadata is already set by image_squeeze_process_image()
+        // Track success/failure counts separately
+        if (is_wp_error($result)) {
+            // If it failed, increment the failed counter
+            $current_job['failed'] = isset($current_job['failed']) ? $current_job['failed'] + 1 : 1;
+        } else {
+            // If it succeeded, increment the done counter
+            $current_job['done'] = isset($current_job['done']) ? $current_job['done'] + 1 : 1;
+        }
+        
+        // Make sure we always have all the fields needed for logs
+        if (!isset($current_job['done'])) $current_job['done'] = 0;
+        if (!isset($current_job['failed'])) $current_job['failed'] = 0;
     }
     
     // Remove processed IDs from the queue
@@ -59,7 +69,11 @@ function image_squeeze_process_batch( $batch_size = 10 ) {
         
         // Log the completed job if we have a job type
         if ( isset( $current_job['type'] ) && function_exists( 'image_squeeze_log_completed_job' ) ) {
-            image_squeeze_log_completed_job( $current_job['type'] );
+            // Force log the counts to debug
+            error_log('JOB COMPLETE - Passing data to log function: done=' . $current_job['done'] . ' failed=' . $current_job['failed']);
+            
+            // Pass the entire job object instead of just the type
+            image_squeeze_log_completed_job( $current_job );
         }
     }
     

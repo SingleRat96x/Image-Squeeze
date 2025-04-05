@@ -131,30 +131,35 @@ function image_squeeze_create_job( $type = 'full' ) {
 /**
  * Log completed optimization job.
  *
- * @param string $type Job type ('full' or 'retry').
+ * @param array|string $job_or_type Either the complete job data array or just the job type (string).
  * @return void
  */
-function image_squeeze_log_completed_job( $type ) {
-    // Count optimized images
-    $cache_key = 'imagesqueeze_optimized_count';
-    $optimized_count = wp_cache_get($cache_key);
-    
-    if (false === $optimized_count) {
-        $optimized_count = image_squeeze_count_attachments_by_meta('_imagesqueeze_optimized', '1');
+function image_squeeze_log_completed_job( $job_or_type ) {
+    // Check if we received the full job data or just the type
+    if (is_array($job_or_type)) {
+        // We received the complete job data
+        $job = $job_or_type;
+        $type = isset($job['type']) ? $job['type'] : 'unknown';
         
-        // Cache the count for 5 minutes
-        wp_cache_set($cache_key, $optimized_count, '', 300);
-    }
-    
-    // Count failed images
-    $cache_key = 'imagesqueeze_failed_count';
-    $failed_count = wp_cache_get($cache_key);
-    
-    if (false === $failed_count) {
-        $failed_count = image_squeeze_count_attachments_by_meta('_imagesqueeze_status', 'failed');
+        // Use the values directly from the job data
+        $job_optimized = isset($job['done']) ? intval($job['done']) : 0;
+        $job_failed = isset($job['failed']) ? intval($job['failed']) : 0;
         
-        // Cache the count for 5 minutes
-        wp_cache_set($cache_key, $failed_count, '', 300);
+        // Log for debugging
+        error_log('ImageSqueeze: Using direct job data - Optimized: ' . $job_optimized . ', Failed: ' . $job_failed);
+    } else {
+        // Legacy mode - just received the type
+        $type = $job_or_type;
+        
+        // Get current job data to use the actual count of images processed in this job
+        $current_job = get_option('imagesqueeze_current_job', array());
+        
+        // Use the job's done count instead of total optimized count from database
+        $job_optimized = isset($current_job['done']) ? intval($current_job['done']) : 0;
+        $job_failed = isset($current_job['failed']) ? intval($current_job['failed']) : 0;
+        
+        // Log for debugging
+        error_log('ImageSqueeze: Using lookup job data - Optimized: ' . $job_optimized . ', Failed: ' . $job_failed);
     }
     
     // Get saved bytes from global variable
@@ -164,8 +169,8 @@ function image_squeeze_log_completed_job( $type ) {
     $log_entry = array(
         'date'        => gmdate( 'Y-m-d' ),
         'job_type'    => $type,
-        'optimized'   => (int) $optimized_count,
-        'failed'      => (int) $failed_count,
+        'optimized'   => (int) $job_optimized,  // Use job's optimized count
+        'failed'      => (int) $job_failed,     // Use job's failed count
         'saved_bytes' => $saved_bytes,
     );
     
@@ -189,8 +194,8 @@ function image_squeeze_log_completed_job( $type ) {
     $last_run_summary = array(
         'date'        => gmdate( 'Y-m-d' ),
         'job_type'    => $type,
-        'optimized'   => (int) $optimized_count,
-        'failed'      => (int) $failed_count,
+        'optimized'   => (int) $job_optimized,  // Use job's optimized count
+        'failed'      => (int) $job_failed,     // Use job's failed count
         'saved_bytes' => $saved_bytes,
     );
     update_option( 'imagesqueeze_last_run_summary', $last_run_summary, false );
@@ -254,7 +259,13 @@ function image_squeeze_check_and_recover_job() {
         
         // Log the completed job
         if ( isset( $current_job['type'] ) ) {
-            image_squeeze_log_completed_job( $current_job['type'] );
+            // Log for debugging
+            error_log('ImageSqueeze: Recovery - Job completed with done=' . 
+                      (isset($current_job['done']) ? $current_job['done'] : 0) . 
+                      ', failed=' . (isset($current_job['failed']) ? $current_job['failed'] : 0));
+            
+            // Pass the entire job object
+            image_squeeze_log_completed_job( $current_job );
         }
     }
     
@@ -406,6 +417,72 @@ function image_squeeze_ajax_cancel_job() {
     wp_send_json_success( array(
         'message' => __( 'Optimization job cancelled successfully.', 'image-squeeze' )
     ) );
+}
+
+/**
+ * Mark job as completed and update stats
+ * 
+ * @param array $job The job data.
+ * @return array Modified job data.
+ */
+function image_squeeze_complete_job($job) {
+    if (!is_array($job)) {
+        $job = array();
+    }
+    
+    // Set status to completed
+    $job['status'] = 'completed';
+    
+    // Ensure the job has all required counters
+    if (!isset($job['done'])) $job['done'] = 0;
+    if (!isset($job['failed'])) $job['failed'] = 0;
+    if (!isset($job['saved_bytes'])) $job['saved_bytes'] = 0;
+    
+    // Debug log to trace the job data 
+    error_log('ImageSqueeze: Complete job data: ' . json_encode($job));
+    
+    // Update job data
+    update_option('imagesqueeze_current_job', $job);
+    
+    // Create the last run summary (based on the job's data)
+    $last_run_summary = array(
+        'date' => current_time('mysql'),
+        'optimized' => intval($job['done']),
+        'failed' => intval($job['failed']),
+        'saved_bytes' => intval($job['saved_bytes']),
+    );
+    
+    // Log optimization counts for debugging
+    error_log('ImageSqueeze: Images optimized: ' . $job['done'] . ', Failed: ' . $job['failed']);
+    
+    // Get current timestamp with proper time information
+    $current_datetime = current_time('mysql', true); // true = get GMT time
+    
+    // Log the timestamp for debugging
+    error_log('ImageSqueeze: Job completed at ' . $current_datetime);
+    
+    // Store the exact timestamp of completion with full date and time
+    update_option('imagesqueeze_last_run_time', $current_datetime);
+    
+    // Also store the timestamp in the summary and use the same full timestamp for 'date'
+    $last_run_summary['timestamp'] = $current_datetime;
+    $last_run_summary['date'] = $current_datetime; // Replace the date-only version with full timestamp
+    
+    // Update last run summary
+    update_option('imagesqueeze_last_run_summary', $last_run_summary);
+    
+    // Add to optimization log
+    $log = get_option('imagesqueeze_optimization_log', array());
+    array_unshift($log, $last_run_summary); // Add to beginning of array
+    
+    // Keep only the last 20 entries to prevent the log from growing too large
+    if (count($log) > 20) {
+        $log = array_slice($log, 0, 20);
+    }
+    
+    update_option('imagesqueeze_optimization_log', $log);
+    
+    return $job;
 }
 
 // Register AJAX actions

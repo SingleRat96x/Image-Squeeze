@@ -58,13 +58,19 @@ function image_squeeze_enqueue_admin_assets($hook) {
         true
     );
     
+    // Create a fresh nonce for AJAX security
+    $ajax_nonce = wp_create_nonce('image_squeeze_nonce');
+    
+    // Log the nonce for debugging (first 3 chars only for security)
+    error_log('ImageSqueeze: Generated nonce for admin page - prefix: ' . substr($ajax_nonce, 0, 3) . '...');
+    
     // Add nonce and other data for AJAX
     wp_localize_script(
         'image-squeeze-admin',
         'imageSqueeze',
         array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('image_squeeze_nonce'),
+            'nonce' => $ajax_nonce,
             'strings' => array(
                 'optimizationComplete' => __('Optimization complete!', 'image-squeeze'),
                 'optimizationSuccess' => __('Optimization completed successfully!', 'image-squeeze'),
@@ -370,7 +376,34 @@ function image_squeeze_render_dashboard_tab() {
                             </div>
                             <div class="summary-info">
                                 <span class="summary-label"><?php echo esc_html__('Last Run', 'image-squeeze'); ?></span>
-                                <span class="summary-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($last_run_date))); ?></span>
+                                <span class="summary-value">
+                                    <?php 
+                                    // Get the last run time from options
+                                    $last_run_time = get_option('imagesqueeze_last_run_time', '');
+                                    
+                                    if (!empty($last_run_time)) {
+                                        // Debug the timestamp value
+                                        error_log('Admin UI: last_run_time from DB: ' . $last_run_time);
+                                        
+                                        // Create a DateTime object to ensure proper timestamp parsing
+                                        $datetime = new DateTime($last_run_time);
+                                        
+                                        // Format with explicit time components
+                                        echo esc_html(date_i18n('F j, Y \a\t g:i a', $datetime->getTimestamp()));
+                                    } elseif (!empty($last_run_date)) {
+                                        // Debug the fallback date
+                                        error_log('Admin UI: Using fallback date: ' . $last_run_date);
+                                        
+                                        // Create a DateTime object for the fallback date
+                                        $datetime = new DateTime($last_run_date);
+                                        
+                                        // Format without time component (date only)
+                                        echo esc_html(date_i18n('F j, Y', $datetime->getTimestamp()));
+                                    } else {
+                                        echo esc_html__('Never', 'image-squeeze');
+                                    }
+                                    ?>
+                                </span>
                             </div>
                         </div>
                         
@@ -426,12 +459,12 @@ function image_squeeze_render_dashboard_tab() {
                         <?php if ($job_in_progress): ?>
                             <div class="imagesqueeze-status-badge in-progress">
                                 <span class="dashicons dashicons-update"></span>
-                                <?php echo esc_html__('Status: In Progress', 'image-squeeze'); ?>
+                                <?php echo esc_html__('Optimizing...', 'image-squeeze'); ?>
                             </div>
                         <?php else: ?>
                             <div class="imagesqueeze-status-badge idle">
                                 <span class="dashicons dashicons-marker"></span>
-                                <?php echo esc_html__('Status: Idle', 'image-squeeze'); ?>
+                                <?php echo esc_html__('Ready for Optimization', 'image-squeeze'); ?>
                             </div>
                         <?php endif; ?>
                         
@@ -457,41 +490,44 @@ function image_squeeze_render_dashboard_tab() {
                         </div>
                     </div>
                     
-                    <!-- Progress Container -->
+                    <!-- Progress Container with Spinner -->
                     <div id="progress-container" class="imagesqueeze-progress-container" style="<?php echo $job_in_progress ? '' : 'display: none;'; ?>">
-                        <?php if ($job_in_progress && isset($current_job['done']) && isset($current_job['total']) && $current_job['total'] > 0): ?>
-                            <div class="imagesqueeze-progress-label">
-                                <?php 
-                                $done = intval($current_job['done']);
-                                $total = intval($current_job['total']);
-                                printf(
-                                    /* translators: %1$d is the number of processed images, %2$d is the total number of images */
-                                    esc_html__('Progress: %1$d of %2$d images', 'image-squeeze'),
-                                    esc_html($done),
-                                    esc_html($total)
-                                );
-                                ?>
+                        <div class="imagesqueeze-progress-with-spinner">
+                            <div class="imagesqueeze-spinner">
+                                <span class="dashicons dashicons-update"></span>
                             </div>
-                        <?php endif; ?>
-                        
-                        <div class="imagesqueeze-progress-wrapper">
-                            <div id="progress-bar" class="imagesqueeze-progress-bar"></div>
-                        </div>
-                        
-                        <div id="progress-text" class="imagesqueeze-progress-text" aria-live="polite">
-                            <?php 
-                            if ($job_in_progress && isset($current_job['done']) && isset($current_job['total']) && $current_job['total'] > 0) {
-                                $done = intval($current_job['done']);
-                                $total = intval($current_job['total']);
-                                echo sprintf(
-                                    '<span class="dashicons dashicons-update"></span> ' . 
-                                    /* translators: %1$d is the number of processed images, %2$d is the total number of images */
-                                    esc_html__('Processing %1$d of %2$d images', 'image-squeeze'),
-                                    esc_html($done),
-                                    esc_html($total)
-                                );
-                            }
-                            ?>
+                            
+                            <div class="imagesqueeze-progress-details">
+                                <?php if ($job_in_progress && isset($current_job['done']) && isset($current_job['total']) && $current_job['total'] > 0): ?>
+                                    <div class="imagesqueeze-progress-label">
+                                        <?php 
+                                        $done = intval($current_job['done']);
+                                        $total = intval($current_job['total']);
+                                        printf(
+                                            /* translators: %1$d is the number of processed images, %2$d is the total number of images */
+                                            esc_html__('Compressed %1$d of %2$d images', 'image-squeeze'),
+                                            esc_html($done),
+                                            esc_html($total)
+                                        );
+                                        ?>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <div id="progress-text" class="imagesqueeze-progress-text" aria-live="polite">
+                                    <?php 
+                                    if ($job_in_progress && isset($current_job['done']) && isset($current_job['total']) && $current_job['total'] > 0) {
+                                        $done = intval($current_job['done']);
+                                        $total = intval($current_job['total']);
+                                        $percent = $total > 0 ? round(($done / $total) * 100) : 0;
+                                        echo sprintf(
+                                            /* translators: %1$d is the percentage complete */
+                                            esc_html__('%1$d%% complete', 'image-squeeze'),
+                                            esc_html($percent)
+                                        );
+                                    }
+                                    ?>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- For screen readers -->
@@ -501,7 +537,7 @@ function image_squeeze_render_dashboard_tab() {
                     <!-- Success/Failure Message (Hidden by default, shown by JS) -->
                     <div id="optimization-status" class="imagesqueeze-final-status" style="display: none;">
                         <span class="dashicons dashicons-yes"></span>
-                        <span id="optimization-status-text"></span>
+                        <span id="optimization-status-text"><?php echo esc_html__('Optimization complete!', 'image-squeeze'); ?></span>
                     </div>
                 </div>
             </div>
