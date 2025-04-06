@@ -110,7 +110,10 @@ function image_squeeze_render_admin_page() {
     // Start admin page container
     ?>
     <div class="wrap image-squeeze-admin">
-        <h1><?php echo esc_html__('Image Squeeze', 'image-squeeze'); ?></h1>
+        <h1 class="wp-heading-inline">
+            <span class="dashicons dashicons-format-gallery" style="font-size: 26px; width: 26px; height: 26px; margin-right: 10px; vertical-align: text-top;"></span>
+            <?php echo esc_html__('Image Squeeze', 'image-squeeze'); ?>
+        </h1>
         
         <h2 class="nav-tab-wrapper">
             <?php

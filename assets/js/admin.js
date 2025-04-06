@@ -469,7 +469,6 @@
             // Hide spinner, show success message
             elements.progressContainer.hide();
             showCompletedMessage();
-            updateStatusBadgeToComplete();
         }
     }
     
@@ -525,7 +524,10 @@
         
         // Show completion message with checkmark icon
         showCompletedMessage();
-        updateStatusBadgeToComplete();
+        
+        // Reset the status badge to idle instead of showing "Complete"
+        elements.statusBadge.removeClass('in-progress complete').addClass('idle');
+        elements.statusBadge.html('<span class="dashicons dashicons-marker"></span> Ready for Optimization');
         
         // Refresh dashboard stats to update the numbers
         refreshDashboardStats();

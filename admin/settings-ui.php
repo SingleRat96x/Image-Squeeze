@@ -267,7 +267,12 @@ function image_squeeze_settings_ui() {
     $auto_optimize = isset($settings['optimize_on_upload']) ? $settings['optimize_on_upload'] : false;
     ?>
     <div class="wrap">
-        <h1><?php esc_html_e('Image Squeeze Settings', 'image-squeeze'); ?></h1>
+        <div class="imagesqueeze-section">
+            <h2 class="imagesqueeze-section-title">
+                <span class="dashicons dashicons-admin-generic"></span>
+                <?php esc_html_e('Image Squeeze Settings', 'image-squeeze'); ?>
+            </h2>
+        </div>
         
         <form method="post" action="options.php" class="imagesqueeze-settings-form">
             <?php

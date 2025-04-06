@@ -36,6 +36,44 @@ if (!empty($logs)) {
         <?php endif; ?>
     </h2>
     
+    <?php if (!empty($logs)) : ?>
+    <div class="imagesqueeze-logs-filters">
+        <div class="imagesqueeze-filter-group">
+            <label for="log-type-filter"><?php echo esc_html__('Filter by Status:', 'image-squeeze'); ?></label>
+            <select id="log-type-filter" class="imagesqueeze-filter">
+                <option value="all"><?php echo esc_html__('All', 'image-squeeze'); ?></option>
+                <option value="success"><?php echo esc_html__('Success', 'image-squeeze'); ?></option>
+                <option value="failed"><?php echo esc_html__('Failed', 'image-squeeze'); ?></option>
+                <option value="cleanup"><?php echo esc_html__('Cleanup', 'image-squeeze'); ?></option>
+                <option value="retry"><?php echo esc_html__('Retry', 'image-squeeze'); ?></option>
+            </select>
+        </div>
+        
+        <div class="imagesqueeze-filter-group">
+            <label for="date-range-filter"><?php echo esc_html__('Date Range:', 'image-squeeze'); ?></label>
+            <select id="date-range-filter" class="imagesqueeze-filter">
+                <option value="all"><?php echo esc_html__('All', 'image-squeeze'); ?></option>
+                <option value="today"><?php echo esc_html__('Today', 'image-squeeze'); ?></option>
+                <option value="week"><?php echo esc_html__('Last 7 Days', 'image-squeeze'); ?></option>
+                <option value="month"><?php echo esc_html__('Last 30 Days', 'image-squeeze'); ?></option>
+                <option value="custom"><?php echo esc_html__('Custom', 'image-squeeze'); ?></option>
+            </select>
+        </div>
+        
+        <div id="custom-date-inputs" class="imagesqueeze-filter-group" style="display: none;">
+            <label for="start-date"><?php echo esc_html__('Start Date:', 'image-squeeze'); ?></label>
+            <input type="date" id="start-date" class="imagesqueeze-date-input">
+            
+            <label for="end-date"><?php echo esc_html__('End Date:', 'image-squeeze'); ?></label>
+            <input type="date" id="end-date" class="imagesqueeze-date-input">
+            
+            <button id="apply-custom-date" class="button button-secondary">
+                <?php echo esc_html__('Apply', 'image-squeeze'); ?>
+            </button>
+        </div>
+    </div>
+    <?php endif; ?>
+    
     <div class="imagesqueeze-logs-timeline">
         <?php if (!empty($logs)) : ?>
             <?php foreach ($logs as $log) : ?>
@@ -43,6 +81,10 @@ if (!empty($logs)) {
                 // Determine log type
                 $is_retry = isset($log['job_type']) && $log['job_type'] === 'retry';
                 $is_cleanup = isset($log['job_type']) && $log['job_type'] === 'cleanup';
+                $has_failed = isset($log['failed']) && $log['failed'] > 0;
+                
+                // Get log type for filtering
+                $log_type = $is_retry ? 'retry' : ($is_cleanup ? 'cleanup' : ($has_failed ? 'failed' : 'full'));
                 
                 // Determine class based on job type
                 $card_class = 'imagesqueeze-timeline-card';
@@ -60,77 +102,27 @@ if (!empty($logs)) {
                     $log_icon = 'dashicons-trash';
                     $log_title = __('Cleanup Job', 'image-squeeze');
                     $badge_class = 'badge-cleanup';
+                } elseif ($has_failed) {
+                    $card_class .= ' failed-job';
+                    $log_icon = 'dashicons-warning';
+                    $log_title = __('Failed Job', 'image-squeeze');
+                    $badge_class = 'badge-failed';
                 }
                 
-                // Format the date
-                $date = isset($log['date']) ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($log['date'])) : '';
-                $short_date = isset($log['date']) ? date_i18n(get_option('date_format'), strtotime($log['date'])) : '';
+                // Format the date for display
+                $display_date = isset($log['date']) ? date_i18n(get_option('date_format'), strtotime($log['date'])) : '';
                 
-                // Explicitly extract and format the time component for better reliability
-                $time_display = '';
-                if (isset($log['date']) && !empty($log['date'])) {
-                    try {
-                        // Create a DateTime object from the stored timestamp
-                        $date_obj = new DateTime($log['date']);
-                        
-                        // Apply WordPress timezone
-                        $timezone_string = get_option('timezone_string');
-                        $gmt_offset = get_option('gmt_offset');
-                        
-                        if (!empty($timezone_string)) {
-                            $date_obj->setTimezone(new DateTimeZone($timezone_string));
-                        } elseif ($gmt_offset !== false) {
-                            $offset = (float) $gmt_offset;
-                            $hours = (int) $offset;
-                            $minutes = ($offset - $hours) * 60;
-                            
-                            $sign = ($offset >= 0) ? '+' : '-';
-                            $timezone_offset = sprintf('%s%02d:%02d', $sign, abs($hours), abs($minutes));
-                            $date_obj->setTimezone(new DateTimeZone($timezone_offset));
-                        }
-                        
-                        // Format using WordPress time format settings
-                        $time_format = get_option('time_format', 'g:i a');
-                        $time_display = $date_obj->format($time_format);
-                        
-                        // Also update date display for consistency
-                        $date_format = get_option('date_format', 'F j, Y');
-                        $short_date = $date_obj->format($date_format);
-                        $date = $date_obj->format($date_format . ' ' . $time_format);
-                    } catch (Exception $e) {
-                        // Fallback to the original method if DateTime fails
-                        $timestamp = strtotime($log['date']);
-                        if ($timestamp !== false) {
-                            $time_display = date_i18n(get_option('time_format'), $timestamp);
-                        }
-                    }
-                }
-                
-                // Get counts
-                $total = isset($log['total']) ? intval($log['total']) : 0;
-                $optimized = isset($log['optimized']) ? intval($log['optimized']) : 0;
-                $failed = isset($log['failed']) ? intval($log['failed']) : 0;
-                $deleted = isset($log['deleted']) ? intval($log['deleted']) : 0;
-                $saved_bytes = isset($log['saved_bytes']) ? intval($log['saved_bytes']) : 0;
-                
-                // Format saved bytes
-                $saved_display = '';
-                if ($saved_bytes > 0) {
-                    if ($saved_bytes >= 1048576) { // 1MB
-                        $saved_display = round($saved_bytes / 1048576, 2) . ' MB';
-                    } else {
-                        $saved_display = round($saved_bytes / 1024, 2) . ' KB';
-                    }
-                }
+                // Get the date in standard format for filtering (YYYY-MM-DD)
+                $filter_date = isset($log['date']) ? date('Y-m-d', strtotime($log['date'])) : '';
                 ?>
                 
-                <div class="<?php echo esc_attr($card_class); ?>">
+                <div class="<?php echo esc_attr($card_class); ?>" data-log-type="<?php echo esc_attr($log_type); ?>" data-log-date="<?php echo esc_attr($filter_date); ?>">
                     <div class="timeline-connector"></div>
                     
                     <div class="timeline-card-header">
                         <div class="timeline-date">
                             <span class="dashicons dashicons-calendar-alt" aria-hidden="true"></span>
-                            <span><?php echo esc_html($short_date); ?></span>
+                            <span><?php echo esc_html($display_date); ?></span>
                         </div>
                         
                         <div class="timeline-type">
@@ -138,20 +130,6 @@ if (!empty($logs)) {
                                 <span class="dashicons <?php echo esc_attr($log_icon); ?>"></span>
                                 <?php echo esc_html($log_title); ?>
                             </span>
-                        </div>
-                        
-                        <div class="timeline-time" title="<?php echo esc_attr($date); ?>">
-                            <?php if (isset($log['time'])): ?>
-                                <span class="plain-timestamp">
-                                    <?php echo esc_html($log['time']); ?>
-                                </span>
-                            <?php elseif (isset($log['timestamp'])): ?>
-                                <span class="stored-timestamp" data-timestamp="<?php echo esc_attr($log['timestamp']); ?>">
-                                    <?php echo esc_html($time_display); ?>
-                                </span>
-                            <?php else: ?>
-                                <?php echo esc_html($time_display); ?>
-                            <?php endif; ?>
                         </div>
                     </div>
                     
@@ -161,38 +139,47 @@ if (!empty($logs)) {
                                 <li class="success">
                                     <span class="dashicons dashicons-trash"></span>
                                     <span class="detail-label"><?php echo esc_html__('Deleted Files:', 'image-squeeze'); ?></span>
-                                    <span class="detail-value"><?php echo esc_html($deleted); ?></span>
+                                    <span class="detail-value"><?php echo esc_html($log['deleted'] ?? 0); ?></span>
                                 </li>
                             </ul>
                         <?php else : ?>
                             <ul class="timeline-details-list">
-                                <?php if ($total > 0) : ?>
+                                <?php if (isset($log['total']) && $log['total'] > 0) : ?>
                                 <li>
                                     <span class="dashicons dashicons-images-alt2"></span>
                                     <span class="detail-label"><?php echo esc_html__('Total Processed:', 'image-squeeze'); ?></span>
-                                    <span class="detail-value"><?php echo esc_html($total); ?></span>
+                                    <span class="detail-value"><?php echo esc_html($log['total'] ?? 0); ?></span>
                                 </li>
                                 <?php endif; ?>
                                 
                                 <li class="success">
                                     <span class="dashicons dashicons-yes-alt"></span>
                                     <span class="detail-label"><?php echo esc_html__('Optimized:', 'image-squeeze'); ?></span>
-                                    <span class="detail-value"><?php echo esc_html($optimized); ?></span>
+                                    <span class="detail-value"><?php echo esc_html($log['optimized'] ?? 0); ?></span>
                                 </li>
                                 
-                                <?php if ($failed > 0) : ?>
+                                <?php if (isset($log['failed']) && $log['failed'] > 0) : ?>
                                 <li class="error">
                                     <span class="dashicons dashicons-warning"></span>
                                     <span class="detail-label"><?php echo esc_html__('Failed:', 'image-squeeze'); ?></span>
-                                    <span class="detail-value"><?php echo esc_html($failed); ?></span>
+                                    <span class="detail-value"><?php echo esc_html($log['failed'] ?? 0); ?></span>
                                 </li>
                                 <?php endif; ?>
                                 
-                                <?php if (!empty($saved_display)) : ?>
+                                <?php if (isset($log['saved_bytes']) && $log['saved_bytes'] > 0) : ?>
                                 <li class="savings">
                                     <span class="dashicons dashicons-database"></span>
                                     <span class="detail-label"><?php echo esc_html__('Space Saved:', 'image-squeeze'); ?></span>
-                                    <span class="detail-value"><?php echo esc_html($saved_display); ?></span>
+                                    <span class="detail-value">
+                                        <?php 
+                                        $saved_bytes = intval($log['saved_bytes']);
+                                        if ($saved_bytes >= 1048576) { // 1MB
+                                            echo esc_html(round($saved_bytes / 1048576, 2) . ' MB');
+                                        } else {
+                                            echo esc_html(round($saved_bytes / 1024, 2) . ' KB');
+                                        }
+                                        ?>
+                                    </span>
                                 </li>
                                 <?php endif; ?>
                             </ul>
@@ -213,33 +200,136 @@ if (!empty($logs)) {
 
 <?php if (!empty($logs)): ?>
 <script>
-// Simple backup script to handle any legacy timestamp entries during transition
 document.addEventListener('DOMContentLoaded', function() {
-    // Only convert legacy timestamps (should be rare/none after migration)
-    var legacyTimestamps = document.querySelectorAll('.stored-timestamp');
-    if (legacyTimestamps.length > 0) {
-        console.log('Converting ' + legacyTimestamps.length + ' legacy timestamps');
+    // Filtering variables
+    let activeTypeFilter = 'all';
+    let activeDateRange = 'all';
+    let customStartDate = '';
+    let customEndDate = '';
+    
+    // DOM Elements
+    const typeFilter = document.getElementById('log-type-filter');
+    const dateRangeFilter = document.getElementById('date-range-filter');
+    const customDateInputs = document.getElementById('custom-date-inputs');
+    const startDateInput = document.getElementById('start-date');
+    const endDateInput = document.getElementById('end-date');
+    const applyCustomDateBtn = document.getElementById('apply-custom-date');
+    const logEntries = document.querySelectorAll('.imagesqueeze-timeline-card');
+    
+    // Set today's date as default for date inputs
+    const today = new Date();
+    const todayFormatted = today.toISOString().split('T')[0];
+    endDateInput.value = todayFormatted;
+    
+    // Set default start date to 30 days ago
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    startDateInput.value = thirtyDaysAgo.toISOString().split('T')[0];
+    
+    // Event Listeners
+    typeFilter.addEventListener('change', filterLogs);
+    dateRangeFilter.addEventListener('change', handleDateRangeChange);
+    applyCustomDateBtn.addEventListener('click', filterLogs);
+    
+    function handleDateRangeChange() {
+        activeDateRange = dateRangeFilter.value;
         
-        legacyTimestamps.forEach(function(element) {
-            var timestamp = element.getAttribute('data-timestamp');
-            if (timestamp) {
-                // Convert Unix timestamp to milliseconds for JavaScript Date
-                var date = new Date(parseInt(timestamp) * 1000);
-                
-                // Format time as HH:MM AM/PM
-                var hours = date.getHours();
-                var minutes = date.getMinutes();
-                var ampm = hours >= 12 ? 'PM' : 'AM';
-                hours = hours % 12;
-                hours = hours ? hours : 12; // the hour '0' should be '12'
-                minutes = minutes < 10 ? '0' + minutes : minutes;
-                var localTime = hours + ':' + minutes + ' ' + ampm;
-                
-                // Update the element
-                element.textContent = localTime;
+        // Show/hide custom date inputs
+        if (activeDateRange === 'custom') {
+            customDateInputs.style.display = 'flex';
+        } else {
+            customDateInputs.style.display = 'none';
+            filterLogs();
+        }
+    }
+    
+    function filterLogs() {
+        // Get current filter values
+        activeTypeFilter = typeFilter.value;
+        activeDateRange = dateRangeFilter.value;
+        
+        if (activeDateRange === 'custom') {
+            customStartDate = startDateInput.value;
+            customEndDate = endDateInput.value;
+        }
+        
+        // Apply filters to each log entry
+        logEntries.forEach(function(logEntry) {
+            const logType = logEntry.getAttribute('data-log-type');
+            const logDate = logEntry.getAttribute('data-log-date');
+            
+            // Initialize visibility
+            let showByType = (activeTypeFilter === 'all' || 
+                              (activeTypeFilter === 'success' && logType === 'full') ||
+                              (activeTypeFilter !== 'success' && logType === activeTypeFilter));
+            let showByDate = false;
+            
+            // Handle date filtering
+            if (activeDateRange === 'all') {
+                showByDate = true;
+            } else if (activeDateRange === 'today') {
+                showByDate = (logDate === todayFormatted);
+            } else if (activeDateRange === 'week') {
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(today.getDate() - 7);
+                const sevenDaysAgoFormatted = sevenDaysAgo.toISOString().split('T')[0];
+                showByDate = (logDate >= sevenDaysAgoFormatted && logDate <= todayFormatted);
+            } else if (activeDateRange === 'month') {
+                const thirtyDaysAgoFormatted = thirtyDaysAgo.toISOString().split('T')[0];
+                showByDate = (logDate >= thirtyDaysAgoFormatted && logDate <= todayFormatted);
+            } else if (activeDateRange === 'custom') {
+                showByDate = (logDate >= customStartDate && logDate <= customEndDate);
+            }
+            
+            // Show/hide based on combined filters
+            if (showByType && showByDate) {
+                logEntry.style.display = 'block';
+            } else {
+                logEntry.style.display = 'none';
             }
         });
+        
+        // Check if no visible logs
+        checkNoVisibleLogs();
     }
+    
+    function checkNoVisibleLogs() {
+        // Fix: Improve the selector to count visible logs correctly
+        // Find logs that are not hidden (either display:block or no display style)
+        const visibleLogs = Array.from(logEntries).filter(entry => {
+            const style = window.getComputedStyle(entry);
+            return style.display !== 'none';
+        });
+        
+        const timelineContainer = document.querySelector('.imagesqueeze-logs-timeline');
+        let noLogsMessage = timelineContainer.querySelector('.imagesqueeze-no-visible-logs');
+        
+        if (visibleLogs.length === 0) {
+            // Create "no visible logs" message if it doesn't exist
+            if (!noLogsMessage) {
+                noLogsMessage = document.createElement('div');
+                noLogsMessage.className = 'imagesqueeze-no-visible-logs';
+                noLogsMessage.innerHTML = `
+                    <span class="dashicons dashicons-filter"></span>
+                    <p>${typeFilter.options[typeFilter.selectedIndex].text} ${dateRangeFilter.options[dateRangeFilter.selectedIndex].text}</p>
+                    <p>${'<?php echo esc_js(__('No logs match your current filter settings.', 'image-squeeze')); ?>'}</p>
+                `;
+                timelineContainer.appendChild(noLogsMessage);
+            } else {
+                // Update the message with current filter settings
+                const filterText = document.createElement('p');
+                filterText.textContent = `${typeFilter.options[typeFilter.selectedIndex].text} ${dateRangeFilter.options[dateRangeFilter.selectedIndex].text}`;
+                noLogsMessage.querySelector('p').replaceWith(filterText);
+            }
+            noLogsMessage.style.display = 'flex';
+        } else if (noLogsMessage) {
+            // Hide "no visible logs" message if we have visible logs
+            noLogsMessage.style.display = 'none';
+        }
+    }
+    
+    // Run initial filtering in case URL has parameters
+    filterLogs();
 });
 </script>
 <?php endif; ?> 

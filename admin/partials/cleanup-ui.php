@@ -46,14 +46,9 @@ defined('ABSPATH') || exit;
 
 <script type="text/javascript">
     (function($) {
-        // Update the cleanup JS handler to limit displayed files and add tooltip
+        // Fix the cleanup button click functionality
         $(document).ready(function() {
-            var originalHandler = $('#imagesqueeze-cleanup-button').data('events') ? 
-                                  $('#imagesqueeze-cleanup-button').data('events').click[0].handler : null;
-            
-            if(!originalHandler) return; // No handler attached yet
-            
-            $('#imagesqueeze-cleanup-button').off('click').on('click', function() {
+            $('#imagesqueeze-cleanup-button').on('click', function() {
                 var $button = $(this);
                 var $results = $('#imagesqueeze-cleanup-results');
                 
