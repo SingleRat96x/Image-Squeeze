@@ -1075,4 +1075,77 @@
             return true;
         });
     });
+
+    // Clear Logs functionality
+    $(document).ready(function() {
+        // Handle Clear Logs button click
+        $('#imagesqueeze-clear-logs').on('click', function(e) {
+            e.preventDefault();
+            
+            // Confirm before clearing logs
+            if (!confirm(imageSqueeze.strings.confirmClearLogs)) {
+                return;
+            }
+            
+            const $button = $(this);
+            const $spinner = $('#imagesqueeze-clear-logs-spinner');
+            
+            // Disable button and show spinner
+            $button.prop('disabled', true);
+            $spinner.css('display', 'inline-block');
+            
+            // Send AJAX request to clear logs
+            $.ajax({
+                url: imageSqueeze.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'imagesqueeze_clear_logs',
+                    security: imageSqueeze.nonce
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // Show success notice
+                        displayNotice(response.data.message, 'success');
+                        
+                        // Reload the page to show empty logs
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        // Show error notice
+                        displayNotice(response.data.message, 'error');
+                        
+                        // Re-enable button and hide spinner
+                        $button.prop('disabled', false);
+                        $spinner.hide();
+                    }
+                },
+                error: function() {
+                    // Show generic error
+                    displayNotice(imageSqueeze.strings.errorOccurred, 'error');
+                    
+                    // Re-enable button and hide spinner
+                    $button.prop('disabled', false);
+                    $spinner.hide();
+                }
+            });
+        });
+        
+        // Helper function to display notices
+        function displayNotice(message, type) {
+            const $notice = $('<div class="notice notice-' + type + ' is-dismissible"><p>' + message + '</p></div>');
+            const $noticesContainer = $('.imagesqueeze-notices');
+            
+            // Clear existing notices
+            $noticesContainer.empty();
+            
+            // Add the new notice
+            $noticesContainer.append($notice);
+            
+            // Make the notice dismissible
+            if (typeof wp !== 'undefined' && wp.notices && wp.notices.removeDismissed) {
+                wp.notices.removeDismissed();
+            }
+        }
+    });
 })(jQuery); 

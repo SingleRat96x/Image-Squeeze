@@ -81,7 +81,8 @@ function image_squeeze_enqueue_admin_assets($hook) {
                 'scanningForOrphaned' => __('Scanning for orphaned WebP files...', 'image-squeeze'),
                 'cleanupComplete' => __('Cleanup complete!', 'image-squeeze'),
                 'errorOccurred' => __('An error occurred. Please try again.', 'image-squeeze'),
-                'optimizationCancelled' => __('Optimization cancelled.', 'image-squeeze')
+                'optimizationCancelled' => __('Optimization cancelled.', 'image-squeeze'),
+                'confirmClearLogs' => __('Are you sure you want to clear all optimization logs? This action cannot be undone.', 'image-squeeze')
             )
         )
     );

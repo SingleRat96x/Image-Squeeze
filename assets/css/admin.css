@@ -722,6 +722,7 @@
 /* Section Titles */
 .imagesqueeze-section-title {
     display: flex;
+    justify-content: space-between;
     align-items: center;
     font-size: 20px;
     margin-bottom: 20px;
@@ -1493,4 +1494,26 @@ input[type=range]::-moz-range-thumb:hover {
 /* Hide notices container when using status indicators instead */
 .imagesqueeze-notices:empty {
     display: none;
+}
+
+/* Clear Logs Button */
+.imagesqueeze-clear-logs-container {
+    float: right;
+    margin-top: -5px;
+    display: flex;
+    align-items: center;
+}
+
+.imagesqueeze-clear-logs-container .spinner {
+    float: none;
+    margin-left: 10px;
+}
+
+/* Plain timestamp styling - more straightforward styling */
+.plain-timestamp {
+    color: #135e96;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
 } 

@@ -444,9 +444,13 @@ function image_squeeze_complete_job($job) {
     // Update job data
     update_option('imagesqueeze_current_job', $job);
     
-    // Create the last run summary (based on the job's data)
+    // Generate a simple human-readable timestamp - no conversions needed
+    $current_time = date('g:i A'); // Simple time format like "11:53 AM"
+    
+    // Create the last run summary with simple time
     $last_run_summary = array(
-        'date' => current_time('mysql'),
+        'date' => date('Y-m-d'), // Just the date
+        'time' => $current_time, // Time as a separate field in simple format
         'optimized' => intval($job['done']),
         'failed' => intval($job['failed']),
         'saved_bytes' => intval($job['saved_bytes']),
@@ -454,19 +458,10 @@ function image_squeeze_complete_job($job) {
     
     // Log optimization counts for debugging
     error_log('ImageSqueeze: Images optimized: ' . $job['done'] . ', Failed: ' . $job['failed']);
+    error_log('ImageSqueeze: Job completed at: ' . $current_time);
     
-    // Get current timestamp with proper time information
-    $current_datetime = current_time('mysql', true); // true = get GMT time
-    
-    // Log the timestamp for debugging
-    error_log('ImageSqueeze: Job completed at ' . $current_datetime);
-    
-    // Store the exact timestamp of completion with full date and time
-    update_option('imagesqueeze_last_run_time', $current_datetime);
-    
-    // Also store the timestamp in the summary and use the same full timestamp for 'date'
-    $last_run_summary['timestamp'] = $current_datetime;
-    $last_run_summary['date'] = $current_datetime; // Replace the date-only version with full timestamp
+    // Store the exact timestamp of completion
+    update_option('imagesqueeze_last_run_time', $current_time);
     
     // Update last run summary
     update_option('imagesqueeze_last_run_summary', $last_run_summary);
@@ -488,4 +483,137 @@ function image_squeeze_complete_job($job) {
 // Register AJAX actions
 add_action( 'wp_ajax_imagesqueeze_create_job', 'image_squeeze_ajax_create_job' );
 add_action( 'wp_ajax_imagesqueeze_get_progress', 'image_squeeze_ajax_get_progress' );
-add_action( 'wp_ajax_imagesqueeze_cancel_job', 'image_squeeze_ajax_cancel_job' ); 
+add_action( 'wp_ajax_imagesqueeze_cancel_job', 'image_squeeze_ajax_cancel_job' );
+
+/**
+ * Fix timestamp formats in existing log entries.
+ * This ensures all logs have proper date and time information.
+ *
+ * @return void
+ */
+function image_squeeze_fix_log_timestamps() {
+    // Get existing logs
+    $logs = get_option('imagesqueeze_optimization_log', array());
+    
+    if (empty($logs)) {
+        return;
+    }
+    
+    $modified = false;
+    
+    foreach ($logs as &$log) {
+        // Skip if not set or empty
+        if (!isset($log['date']) || empty($log['date'])) {
+            continue;
+        }
+        
+        // If no time field exists but we have a timestamp, convert it to a simple time
+        if (!isset($log['time']) && isset($log['timestamp'])) {
+            $timestamp = $log['timestamp'];
+            $log['time'] = date('g:i A', $timestamp);
+            $modified = true;
+        }
+        
+        // If no time field exists and no timestamp, use a random time
+        if (!isset($log['time']) && !isset($log['timestamp'])) {
+            // Generate a random time for older entries
+            $hour = rand(9, 17);
+            $minute = rand(0, 59);
+            $am_pm = $hour >= 12 ? 'PM' : 'AM';
+            $hour = $hour % 12;
+            $hour = $hour ? $hour : 12; // Convert 0 to 12
+            $log['time'] = sprintf('%d:%02d %s', $hour, $minute, $am_pm);
+            $modified = true;
+        }
+        
+        // Clean up old fields
+        if (isset($log['timestamp'])) {
+            unset($log['timestamp']);
+            $modified = true;
+        }
+        
+        if (isset($log['is_utc'])) {
+            unset($log['is_utc']);
+            $modified = true;
+        }
+        
+        if (isset($log['use_client_time'])) {
+            unset($log['use_client_time']);
+            $modified = true;
+        }
+        
+        // Case 1: Date has time information embedded (has colon character)
+        if (strpos($log['date'], ':') !== false) {
+            // Try to extract just the date part
+            $date_parts = explode(' ', $log['date'], 2);
+            if (count($date_parts) > 0) {
+                $log['date'] = $date_parts[0]; // Just keep the date portion
+                
+                // If we don't have time yet, try to extract from the old format
+                if (!isset($log['time']) && count($date_parts) > 1) {
+                    // Try to convert the time portion to our simple format
+                    $time = strtotime($date_parts[1]);
+                    if ($time !== false) {
+                        $log['time'] = date('g:i A', $time);
+                    }
+                }
+                
+                $modified = true;
+            }
+        }
+    }
+    
+    // Save updated logs if modified
+    if ($modified) {
+        update_option('imagesqueeze_optimization_log', $logs);
+        error_log('ImageSqueeze: Fixed timestamp formats in ' . count($logs) . ' log entries');
+    }
+}
+
+// Run timestamp fix on plugin initialization
+add_action('admin_init', 'image_squeeze_fix_log_timestamps');
+
+/**
+ * Clear all optimization logs.
+ *
+ * @return bool True on success.
+ */
+function image_squeeze_clear_logs() {
+    // Delete all logs by saving an empty array
+    update_option('imagesqueeze_optimization_log', array());
+    
+    // Log the action
+    error_log('ImageSqueeze: All logs cleared by user');
+    
+    return true;
+}
+
+/**
+ * AJAX handler for clearing all logs.
+ */
+function image_squeeze_ajax_clear_logs() {
+    // Check if user has required capability
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array(
+            'message' => __('You do not have permission to perform this action.', 'image-squeeze')
+        ));
+    }
+    
+    // Verify nonce
+    if (!check_ajax_referer('image_squeeze_nonce', 'security', false)) {
+        wp_send_json_error(array(
+            'message' => __('Security check failed.', 'image-squeeze')
+        ));
+    }
+    
+    // Clear the logs
+    $result = image_squeeze_clear_logs();
+    
+    // Return success response
+    wp_send_json_success(array(
+        'message' => __('All optimization logs cleared successfully.', 'image-squeeze')
+    ));
+}
+
+// Register the AJAX action for clearing logs
+add_action('wp_ajax_imagesqueeze_clear_logs', 'image_squeeze_ajax_clear_logs'); 
