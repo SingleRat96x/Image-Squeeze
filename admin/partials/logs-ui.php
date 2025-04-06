@@ -113,7 +113,8 @@ if (!empty($logs)) {
                 $display_date = isset($log['date']) ? date_i18n(get_option('date_format'), strtotime($log['date'])) : '';
                 
                 // Get the date in standard format for filtering (YYYY-MM-DD)
-                $filter_date = isset($log['date']) ? date('Y-m-d', strtotime($log['date'])) : '';
+                // Replaced date() with gmdate() per WP coding standards
+                $filter_date = isset($log['date']) ? gmdate('Y-m-d', strtotime($log['date'])) : '';
                 ?>
                 
                 <div class="<?php echo esc_attr($card_class); ?>" data-log-type="<?php echo esc_attr($log_type); ?>" data-log-date="<?php echo esc_attr($filter_date); ?>">

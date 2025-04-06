@@ -1,0 +1,85 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+WORDPRESS CODING STANDARDS
+--------------------------
+- Follow WordPress Coding Standards: Always write clean, readable, and maintainable PHP, JavaScript, and CSS. Adhere to the official WordPress PHP Coding Standards.
+- Use WordPress APIs: For database queries, options, AJAX, REST API, asset handling, and similar tasks, always use the appropriate WordPress API functions—never direct queries or hardcoded paths.
+- Ensure Compatibility: The plugin must support WordPress 5.0 and above, be compatible with PHP 7.4+ and 8.x, and fully support multisite installations.
+- Block Direct File Access: Prevent unauthorized file access using:
+  defined('ABSPATH') || exit;
+- Use Nonces for Security: When processing forms, AJAX requests, or saving settings, always include and verify nonces:
+  wp_nonce_field();
+  check_admin_referer();
+- Unslash Before Sanitizing: Always use wp_unslash() before sanitizing $_POST or similar input. Example:
+  $nonce = sanitize_text_field(wp_unslash($_POST['nonce']));
+
+FILE & FOLDER STRUCTURE
+-----------------------
+- Recommended Folder Structure:
+/plugin-name/
+├── /assets/        → CSS, JS, and images
+├── /includes/      → Core plugin logic
+├── /admin/         → Admin UI and settings logic
+├── /public/        → Public-facing functionality (if applicable)
+├── plugin-name.php → Main plugin file
+└── uninstall.php   → Clean-up script
+
+- Separate Logic and UI: Place business logic in /includes/ and UI-related code in /admin/.
+- Avoid Raw SQL: Use functions like get_option(), update_option(), $wpdb->prepare(), and the REST API instead of direct database queries.
+- Enqueue All Images Properly: Use wp_get_attachment_image() instead of raw <img> tags. Example:
+  echo wp_get_attachment_image($image_id, 'full');
+
+SECURITY BEST PRACTICES
+-----------------------
+- Escape All Output: Use esc_html(), esc_attr(), and esc_url() to escape dynamic content.
+- Sanitize All Inputs: Always sanitize data before use. Example:
+  $user_input = sanitize_text_field($_POST['user_input']);
+- Use Capability Checks: Restrict access to admin-only features:
+  if (!current_user_can('manage_options')) {
+      wp_die(__('You do not have permission to access this page.', 'plugin-text-domain'));
+  }
+- Prevent SQL Injection: Always use $wpdb->prepare() when writing database queries.
+- Protect AJAX Calls: Verify AJAX requests using check_ajax_referer():
+  check_ajax_referer('plugin_action_nonce', 'security');
+- Avoid strip_tags(): Use wp_strip_all_tags() to avoid removing necessary HTML structure.
+
+UI & UX GUIDELINES
+------------------
+- Use the Settings API: Register and sanitize all plugin settings properly:
+  register_setting('plugin_options', 'plugin_setting_name', 'sanitize_text_field');
+- Use WordPress Core UI Components: Leverage WP_List_Table, wp_enqueue_script(), wp_enqueue_style(), and other built-in tools.
+- Accessibility Compliance: Ensure UI components support screen readers, keyboard navigation, and ARIA attributes.
+- No Inline CSS or JS: Always enqueue assets via the appropriate functions:
+  wp_enqueue_script('my-script', plugins_url('/assets/js/myscript.js', __FILE__), ['jquery'], null, true);
+- Use Dashicons: Stick to WordPress-native icons.
+- Update "Tested Up To": Ensure Tested up to in readme.txt reflects the latest stable WordPress version.
+
+DATABASE & PERFORMANCE OPTIMIZATION
+-----------------------------------
+- Do Not Modify Core Tables: Store plugin data in wp_options (autoload = no), wp_postmeta, or custom tables with $wpdb->prefix if necessary.
+- Use Transients for Caching: Prefer set_transient() and get_transient() over frequent database calls.
+- Clean Up on Uninstall: In uninstall.php, remove all stored plugin data using delete_option() or DROP TABLE (with $wpdb->prefix).
+- Cache Raw Queries: If you must run direct queries, wrap them in a cache check:
+  $cached_data = wp_cache_get('my_plugin_data');
+  if (!$cached_data) {
+      $cached_data = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}my_plugin_table");
+      wp_cache_set('my_plugin_data', $cached_data);
+  }
+
+ASSET MANAGEMENT
+----------------
+- Only Load Assets Where Needed: Use admin_enqueue_scripts() and wp_enqueue_scripts() selectively.
+- Combine & Minify Assets: Reduce file size and HTTP requests. Use wp_add_inline_script() for small inline JS when appropriate.
+- Use AJAX the WordPress Way: Always pass variables via wp_localize_script().
+
+PLUGIN SUBMISSION & COMPLIANCE
+------------------------------
+- GPL-Compatible Licensing: Ensure the plugin is licensed under GPL v2 or later.
+- No Obfuscated Code: All source code must be human-readable.
+- No External Data Without Consent: Do not send data externally without user consent and clear disclosure.
+- Avoid Persistent Admin Notices: Show admin notices only when needed. No permanent banners or nags.
+- No Hardcoded Menu Positions: Admin menus must be dynamically positioned.

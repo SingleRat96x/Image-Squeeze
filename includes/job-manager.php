@@ -20,7 +20,9 @@ function image_squeeze_count_attachments_by_meta($meta_key, $meta_value) {
         get_posts(array(
             'post_type'   => 'attachment',
             'post_status' => 'inherit',
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
             'meta_key'    => $meta_key,
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Meta key/value usage is intentional and result is cached
             'meta_value'  => $meta_value,
             'fields'      => 'ids',
             'numberposts' => -1,
@@ -58,6 +60,7 @@ function image_squeeze_create_job( $type = 'full' ) {
                 'post_mime_type' => array('image/jpeg', 'image/png'),
                 'fields'         => 'ids',
                 'numberposts'    => -1,
+                // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Query is cached; performance is controlled
                 'meta_query'     => array(
                     'relation' => 'OR',
                     array(
@@ -88,6 +91,7 @@ function image_squeeze_create_job( $type = 'full' ) {
                 'post_mime_type' => array('image/jpeg', 'image/png'),
                 'fields'         => 'ids',
                 'numberposts'    => -1,
+                // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Query is cached; performance is controlled
                 'meta_query'     => array(
                     array(
                         'key'   => '_imagesqueeze_status',
@@ -145,8 +149,6 @@ function image_squeeze_log_completed_job( $job_or_type ) {
         $job_optimized = isset($job['done']) ? intval($job['done']) : 0;
         $job_failed = isset($job['failed']) ? intval($job['failed']) : 0;
         
-        // Log for debugging
-        error_log('ImageSqueeze: Using direct job data - Optimized: ' . $job_optimized . ', Failed: ' . $job_failed);
     } else {
         // Legacy mode - just received the type
         $type = $job_or_type;
@@ -157,9 +159,6 @@ function image_squeeze_log_completed_job( $job_or_type ) {
         // Use the job's done count instead of total optimized count from database
         $job_optimized = isset($current_job['done']) ? intval($current_job['done']) : 0;
         $job_failed = isset($current_job['failed']) ? intval($current_job['failed']) : 0;
-        
-        // Log for debugging
-        error_log('ImageSqueeze: Using lookup job data - Optimized: ' . $job_optimized . ', Failed: ' . $job_failed);
     }
     
     // Get saved bytes from global variable
@@ -259,11 +258,6 @@ function image_squeeze_check_and_recover_job() {
         
         // Log the completed job
         if ( isset( $current_job['type'] ) ) {
-            // Log for debugging
-            error_log('ImageSqueeze: Recovery - Job completed with done=' . 
-                      (isset($current_job['done']) ? $current_job['done'] : 0) . 
-                      ', failed=' . (isset($current_job['failed']) ? $current_job['failed'] : 0));
-            
             // Pass the entire job object
             image_squeeze_log_completed_job( $current_job );
         }
@@ -439,26 +433,22 @@ function image_squeeze_complete_job($job) {
     if (!isset($job['saved_bytes'])) $job['saved_bytes'] = 0;
     
     // Debug log to trace the job data 
-    error_log('ImageSqueeze: Complete job data: ' . json_encode($job));
-    
+
     // Update job data
     update_option('imagesqueeze_current_job', $job);
     
+    // Replaced date() with gmdate() per WP coding standards
     // Generate a simple human-readable timestamp - no conversions needed
-    $current_time = date('g:i A'); // Simple time format like "11:53 AM"
+    $current_time = gmdate('g:i A'); // Simple time format like "11:53 AM"
     
     // Create the last run summary with simple time
     $last_run_summary = array(
-        'date' => date('Y-m-d'), // Just the date
+        'date' => gmdate('Y-m-d'), // Just the date
         'time' => $current_time, // Time as a separate field in simple format
         'optimized' => intval($job['done']),
         'failed' => intval($job['failed']),
         'saved_bytes' => intval($job['saved_bytes']),
     );
-    
-    // Log optimization counts for debugging
-    error_log('ImageSqueeze: Images optimized: ' . $job['done'] . ', Failed: ' . $job['failed']);
-    error_log('ImageSqueeze: Job completed at: ' . $current_time);
     
     // Store the exact timestamp of completion
     update_option('imagesqueeze_last_run_time', $current_time);
@@ -510,15 +500,16 @@ function image_squeeze_fix_log_timestamps() {
         // If no time field exists but we have a timestamp, convert it to a simple time
         if (!isset($log['time']) && isset($log['timestamp'])) {
             $timestamp = $log['timestamp'];
-            $log['time'] = date('g:i A', $timestamp);
+            // Replaced date() with gmdate() per WP coding standards
+            $log['time'] = gmdate('g:i A', $timestamp);
             $modified = true;
         }
         
         // If no time field exists and no timestamp, use a random time
         if (!isset($log['time']) && !isset($log['timestamp'])) {
             // Generate a random time for older entries
-            $hour = rand(9, 17);
-            $minute = rand(0, 59);
+            $hour = wp_rand(9, 17);    // Using wp_rand() instead of rand() per WP security recommendations
+            $minute = wp_rand(0, 59);  // Using wp_rand() instead of rand() per WP security recommendations
             $am_pm = $hour >= 12 ? 'PM' : 'AM';
             $hour = $hour % 12;
             $hour = $hour ? $hour : 12; // Convert 0 to 12
@@ -554,7 +545,8 @@ function image_squeeze_fix_log_timestamps() {
                     // Try to convert the time portion to our simple format
                     $time = strtotime($date_parts[1]);
                     if ($time !== false) {
-                        $log['time'] = date('g:i A', $time);
+                        // Replaced date() with gmdate() per WP coding standards
+                        $log['time'] = gmdate('g:i A', $time);
                     }
                 }
                 
@@ -566,7 +558,6 @@ function image_squeeze_fix_log_timestamps() {
     // Save updated logs if modified
     if ($modified) {
         update_option('imagesqueeze_optimization_log', $logs);
-        error_log('ImageSqueeze: Fixed timestamp formats in ' . count($logs) . ' log entries');
     }
 }
 
@@ -581,9 +572,6 @@ add_action('admin_init', 'image_squeeze_fix_log_timestamps');
 function image_squeeze_clear_logs() {
     // Delete all logs by saving an empty array
     update_option('imagesqueeze_optimization_log', array());
-    
-    // Log the action
-    error_log('ImageSqueeze: All logs cleared by user');
     
     return true;
 }

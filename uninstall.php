@@ -43,6 +43,7 @@ $attachment_ids = get_posts([
     'post_status' => 'any',
     'fields' => 'ids',
     'posts_per_page' => -1,
+    // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Safe to use in uninstall cleanup context
     'meta_query' => [
         'relation' => 'OR',
         ['key' => '_imagesqueeze_optimized', 'compare' => 'EXISTS'],

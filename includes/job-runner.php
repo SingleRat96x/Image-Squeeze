@@ -69,9 +69,6 @@ function image_squeeze_process_batch( $batch_size = 10 ) {
         
         // Log the completed job if we have a job type
         if ( isset( $current_job['type'] ) && function_exists( 'image_squeeze_log_completed_job' ) ) {
-            // Force log the counts to debug
-            error_log('JOB COMPLETE - Passing data to log function: done=' . $current_job['done'] . ' failed=' . $current_job['failed']);
-            
             // Pass the entire job object instead of just the type
             image_squeeze_log_completed_job( $current_job );
         }

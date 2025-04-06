@@ -61,9 +61,6 @@ function image_squeeze_enqueue_admin_assets($hook) {
     // Create a fresh nonce for AJAX security
     $ajax_nonce = wp_create_nonce('image_squeeze_nonce');
     
-    // Log the nonce for debugging (first 3 chars only for security)
-    error_log('ImageSqueeze: Generated nonce for admin page - prefix: ' . substr($ajax_nonce, 0, 3) . '...');
-    
     // Add nonce and other data for AJAX
     wp_localize_script(
         'image-squeeze-admin',
@@ -386,18 +383,12 @@ function image_squeeze_render_dashboard_tab() {
                                     $last_run_time = get_option('imagesqueeze_last_run_time', '');
                                     
                                     if (!empty($last_run_time)) {
-                                        // Debug the timestamp value
-                                        error_log('Admin UI: last_run_time from DB: ' . $last_run_time);
-                                        
                                         // Create a DateTime object to ensure proper timestamp parsing
                                         $datetime = new DateTime($last_run_time);
                                         
                                         // Format with explicit time components
                                         echo esc_html(date_i18n('F j, Y \a\t g:i a', $datetime->getTimestamp()));
                                     } elseif (!empty($last_run_date)) {
-                                        // Debug the fallback date
-                                        error_log('Admin UI: Using fallback date: ' . $last_run_date);
-                                        
                                         // Create a DateTime object for the fallback date
                                         $datetime = new DateTime($last_run_date);
                                         
