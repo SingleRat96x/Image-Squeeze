@@ -1,0 +1,534 @@
+# Copyright (C) 2025 
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Image Squeeze – Optimize WebP, Compress Images, Boost Performance 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/imagesqueeze\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2025-04-16T09:30:00+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: Claude 3.7\n"
+"X-Domain: imagesqueeze\n"
+
+#: admin/admin-ui.php:72
+msgid "Optimization complete!"
+msgstr ""
+
+#: admin/admin-ui.php:73
+msgid "Optimization completed successfully!"
+msgstr ""
+
+#: admin/admin-ui.php:75
+msgid "Processing %1$d of %2$d images"
+msgstr ""
+
+#: admin/admin-ui.php:77
+msgid "Progress: %1$d percent complete"
+msgstr ""
+
+#: admin/admin-ui.php:78
+msgid "Scanning for orphaned WebP files..."
+msgstr ""
+
+#: admin/admin-ui.php:79
+msgid "Cleanup complete!"
+msgstr ""
+
+#: admin/admin-ui.php:80
+msgid "An error occurred. Please try again."
+msgstr ""
+
+#: admin/admin-ui.php:81
+msgid "Optimization cancelled."
+msgstr ""
+
+#: admin/admin-ui.php:82
+msgid "Are you sure you want to clear all optimization logs? This action cannot be undone."
+msgstr ""
+
+#: admin/admin-ui.php:83
+msgid "No logs match your current filter settings."
+msgstr ""
+
+#: admin/admin-ui.php:84
+msgid "orphaned WebP files have been removed."
+msgstr ""
+
+#: admin/admin-ui.php:85
+msgid "Files Removed:"
+msgstr ""
+
+#: admin/admin-ui.php:86
+msgid "Only showing first 10 files for brevity."
+msgstr ""
+
+#: admin/admin-ui.php:87
+msgid "All Clean!"
+msgstr ""
+
+#: admin/admin-ui.php:88
+msgid "No orphaned WebP files were found. Your media library is clean!"
+msgstr ""
+
+#: admin/admin-ui.php:144
+#: admin/admin-ui.php:155
+msgid "Dashboard"
+msgstr ""
+
+#: admin/admin-ui.php:145
+#: admin/admin-ui.php:165
+msgid "Logs"
+msgstr ""
+
+#: admin/admin-ui.php:146
+#: admin/admin-ui.php:175
+#: admin/settings-ui.php:273
+msgid "Settings"
+msgstr ""
+
+#: admin/admin-ui.php:147
+#: admin/admin-ui.php:185
+msgid "Cleanup"
+msgstr ""
+
+#: admin/admin-ui.php:155
+msgid "Image Squeeze"
+msgstr ""
+
+#: admin/admin-ui.php:328
+msgid "Image Optimization Overview"
+msgstr ""
+
+#: admin/admin-ui.php:339
+msgid "Total Images"
+msgstr ""
+
+#: admin/admin-ui.php:345
+msgid "in Media Library"
+msgstr ""
+
+#: admin/admin-ui.php:355
+msgid "Optimized"
+msgstr ""
+
+#: admin/admin-ui.php:361
+msgid "Compressed Images"
+msgstr ""
+
+#: admin/admin-ui.php:371
+msgid "Failed"
+msgstr ""
+
+#: admin/admin-ui.php:377
+msgid "Optimization Issues"
+msgstr ""
+
+#: admin/admin-ui.php:387
+msgid "Space Saved"
+msgstr ""
+
+#: admin/admin-ui.php:393
+msgid "Total Disk Space Saved"
+msgstr ""
+
+#: admin/admin-ui.php:403
+msgid "Last Run Savings"
+msgstr ""
+
+#: admin/admin-ui.php:409
+msgid "Last Optimization Run"
+msgstr ""
+
+#: admin/admin-ui.php:418
+msgid "Last Optimization Summary"
+msgstr ""
+
+#: admin/admin-ui.php:430
+msgid "Last Run"
+msgstr ""
+
+#: admin/admin-ui.php:449
+msgid "Never"
+msgstr ""
+
+#: admin/admin-ui.php:462
+msgid "Optimized Images"
+msgstr ""
+
+#: admin/admin-ui.php:468
+msgid "Failed:"
+msgstr ""
+
+#: admin/admin-ui.php:481
+msgid "Space Saved"
+msgstr ""
+
+#: admin/admin-ui.php:489
+msgid "No optimization jobs have been run yet."
+msgstr ""
+
+#: admin/admin-ui.php:499
+msgid "Optimization Actions"
+msgstr ""
+
+#: admin/admin-ui.php:508
+msgid "Optimizing..."
+msgstr ""
+
+#: admin/admin-ui.php:513
+msgid "Ready for Optimization"
+msgstr ""
+
+#: admin/admin-ui.php:520
+msgid "Optimize Images Now"
+msgstr ""
+
+#: admin/admin-ui.php:526
+msgid "Cancel Optimization"
+msgstr ""
+
+#: admin/admin-ui.php:533
+msgid "Retry Failed Images"
+msgstr ""
+
+#: admin/admin-ui.php:554
+msgid "Compressed %1$d of %2$d images"
+msgstr ""
+
+#: admin/admin-ui.php:570
+msgid "%1$d%% complete"
+msgstr ""
+
+#: admin/admin-ui.php:586
+msgid "Optimization complete!"
+msgstr ""
+
+#: admin/admin-ui.php:607
+msgid "Logs UI partial file not found."
+msgstr ""
+
+#: admin/admin-ui.php:632
+msgid "Cleanup UI partial file not found."
+msgstr ""
+
+#: admin/partials/cleanup-ui.php:12
+msgid "WebP Cleanup Tool"
+msgstr ""
+
+#: admin/partials/cleanup-ui.php:17
+msgid "Clean Up Unused WebP Files"
+msgstr ""
+
+#: admin/partials/cleanup-ui.php:22
+msgid "This tool will scan your uploads directory for \"orphaned\" WebP files - these are WebP images that were created by Image Squeeze, but their original files (JPG, PNG) no longer exist."
+msgstr ""
+
+#: admin/partials/cleanup-ui.php:25
+msgid "Removing these orphaned files helps keep your server clean and saves disk space."
+msgstr ""
+
+#: admin/partials/cleanup-ui.php:30
+msgid "Scan and delete orphaned WebP files"
+msgstr ""
+
+#: admin/partials/cleanup-ui.php:32
+msgid "Scan & Clean Orphaned Files"
+msgstr ""
+
+#: admin/partials/logs-ui.php:23
+msgid "Optimization History"
+msgstr ""
+
+#: admin/partials/logs-ui.php:28
+msgid "Clear All Logs"
+msgstr ""
+
+#: admin/partials/logs-ui.php:36
+msgid "Filter by Status:"
+msgstr ""
+
+#: admin/partials/logs-ui.php:38
+#: admin/partials/logs-ui.php:49
+msgid "All"
+msgstr ""
+
+#: admin/partials/logs-ui.php:39
+msgid "Success"
+msgstr ""
+
+#: admin/partials/logs-ui.php:40
+msgid "Failed"
+msgstr ""
+
+#: admin/partials/logs-ui.php:41
+msgid "Cleanup"
+msgstr ""
+
+#: admin/partials/logs-ui.php:42
+msgid "Retry"
+msgstr ""
+
+#: admin/partials/logs-ui.php:47
+msgid "Date Range:"
+msgstr ""
+
+#: admin/partials/logs-ui.php:50
+msgid "Today"
+msgstr ""
+
+#: admin/partials/logs-ui.php:51
+msgid "Last 7 Days"
+msgstr ""
+
+#: admin/partials/logs-ui.php:52
+msgid "Last 30 Days"
+msgstr ""
+
+#: admin/partials/logs-ui.php:53
+msgid "Custom"
+msgstr ""
+
+#: admin/partials/logs-ui.php:58
+msgid "Start Date:"
+msgstr ""
+
+#: admin/partials/logs-ui.php:61
+msgid "End Date:"
+msgstr ""
+
+#: admin/partials/logs-ui.php:65
+msgid "Apply"
+msgstr ""
+
+#: admin/partials/logs-ui.php:82
+msgid "Full Optimization"
+msgstr ""
+
+#: admin/partials/logs-ui.php:87
+msgid "Retry Job"
+msgstr ""
+
+#: admin/partials/logs-ui.php:92
+msgid "Cleanup Job"
+msgstr ""
+
+#: admin/partials/logs-ui.php:97
+msgid "Failed Job"
+msgstr ""
+
+#: admin/partials/logs-ui.php:132
+msgid "Deleted Files:"
+msgstr ""
+
+#: admin/partials/logs-ui.php:143
+msgid "Total Processed:"
+msgstr ""
+
+#: admin/partials/logs-ui.php:151
+msgid "Optimized:"
+msgstr ""
+
+#: admin/partials/logs-ui.php:159
+msgid "Failed:"
+msgstr ""
+
+#: admin/partials/logs-ui.php:167
+msgid "Space Saved:"
+msgstr ""
+
+#: admin/partials/logs-ui.php:196
+msgid "No optimization logs found. Run a batch optimization to see results here."
+msgstr ""
+
+#: admin/settings-ui.php:38
+msgid "General Settings"
+msgstr ""
+
+#: admin/settings-ui.php:46
+msgid "Compression Quality (%)"
+msgstr ""
+
+#: admin/settings-ui.php:55
+msgid "Serve WebP Images Automatically"
+msgstr ""
+
+#: admin/settings-ui.php:64
+msgid "Retry Failed Images Automatically"
+msgstr ""
+
+#: admin/settings-ui.php:73
+msgid "Maximum Output File Size (KB)"
+msgstr ""
+
+#: admin/settings-ui.php:82
+msgid "Auto-Optimize on Upload"
+msgstr ""
+
+#: admin/settings-ui.php:121
+msgid "Configure general plugin settings below."
+msgstr ""
+
+#: admin/settings-ui.php:151
+msgid "Lower values reduce file size more, but may slightly affect visual quality. 80% is recommended for most websites."
+msgstr ""
+
+#: admin/settings-ui.php:171
+msgid "Serve WebP Images Automatically"
+msgstr ""
+
+#: admin/settings-ui.php:174
+msgid "Automatically serves WebP versions of your images to supported browsers. If the browser doesn't support WebP, it will fall back to the original image."
+msgstr ""
+
+#: admin/settings-ui.php:177
+msgid "You might want to disable this if you have CDN conflicts or theme compatibility issues."
+msgstr ""
+
+#: admin/settings-ui.php:197
+msgid "Retry Failed Images Automatically"
+msgstr ""
+
+#: admin/settings-ui.php:200
+msgid "Automatically reprocess failed images when starting the next optimization job."
+msgstr ""
+
+#: admin/settings-ui.php:221
+#: admin/settings-ui.php:334
+msgid "KB"
+msgstr ""
+
+#: admin/settings-ui.php:223
+#: admin/settings-ui.php:336
+msgid "If set, the plugin will attempt to reduce optimized image size below this limit (while still respecting the selected compression quality)."
+msgstr ""
+
+#: admin/settings-ui.php:226
+msgid "Leave as 0 to disable this feature."
+msgstr ""
+
+#: admin/settings-ui.php:246
+#: admin/settings-ui.php:406
+msgid "Auto-Optimize on Upload"
+msgstr ""
+
+#: admin/settings-ui.php:249
+#: admin/settings-ui.php:410
+msgid "Automatically compress and convert new uploads to WebP. Original image (JPG/PNG) will be deleted after successful conversion."
+msgstr ""
+
+#: admin/settings-ui.php:252
+#: admin/settings-ui.php:413
+msgid "This is ideal for WooCommerce or content-heavy sites with frequent uploads."
+msgstr ""
+
+#: admin/settings-ui.php:273
+msgid "Image Squeeze Settings"
+msgstr ""
+
+#: admin/settings-ui.php:284
+msgid "Optimization Settings"
+msgstr ""
+
+#: admin/settings-ui.php:291
+msgid "Compression Quality"
+msgstr ""
+
+#: admin/settings-ui.php:314
+msgid "Controls the compression ratio for all optimized images. Lower values reduce file size more, but may slightly affect visual quality. 80% is recommended for most websites."
+msgstr ""
+
+#: admin/settings-ui.php:322
+msgid "Maximum Output File Size"
+msgstr ""
+
+#: admin/settings-ui.php:339
+msgid "Leave blank or 0 to disable max file size targeting."
+msgstr ""
+
+#: admin/settings-ui.php:349
+msgid "WebP Settings"
+msgstr ""
+
+#: admin/settings-ui.php:356
+msgid "Serve WebP Images"
+msgstr ""
+
+#: admin/settings-ui.php:369
+msgid "Serve WebP Images Automatically"
+msgstr ""
+
+#: admin/settings-ui.php:373
+msgid "Automatically serves WebP versions of your images to supported browsers. If the browser doesn't support WebP, it will fall back to the original image."
+msgstr ""
+
+#: admin/settings-ui.php:376
+msgid "You might want to disable this if you have CDN conflicts or theme compatibility issues."
+msgstr ""
+
+#: admin/settings-ui.php:386
+msgid "Automation Settings"
+msgstr ""
+
+#: admin/settings-ui.php:393
+msgid "Optimize New Uploads"
+msgstr ""
+
+#: admin/settings-ui.php:421
+msgid "Auto-Retry Failed Images"
+msgstr ""
+
+#: admin/settings-ui.php:434
+msgid "Retry Failed Images Automatically"
+msgstr ""
+
+#: admin/settings-ui.php:438
+msgid "Automatically reprocess failed images when starting the next optimization job."
+msgstr ""
+
+#: admin/settings-ui.php:447
+msgid "Save Settings"
+msgstr ""
+
+#: includes/ajax-handlers.php:28
+msgid "Nonce verification failed. Please refresh the page and try again."
+msgstr ""
+
+#: includes/ajax-handlers.php:129
+msgid "Optimization job started successfully!"
+msgstr ""
+
+#: includes/ajax-handlers.php:137
+msgid "Failed to start optimization job."
+msgstr ""
+
+#: includes/ajax-handlers.php:190
+msgid "An optimization job is already in progress. Please wait for it to complete."
+msgstr ""
+
+#: includes/ajax-handlers.php:218
+msgid "No optimization logs to clear."
+msgstr ""
+
+#: includes/ajax-handlers.php:223
+msgid "Optimization logs cleared successfully."
+msgstr ""
+
+#: includes/ajax-handlers.php:225
+msgid "Failed to clear optimization logs."
+msgstr ""
+
+#: includes/cleanup-handler.php:62
+msgid "No orphaned WebP files found."
+msgstr ""
+
+#: includes/cleanup-handler.php:68
+msgid "Orphaned WebP files removed successfully."
+msgstr ""
+
+#: includes/webp-serving.php:112
+msgid "WebP images will be served when possible for improved performance."
+msgstr "" 

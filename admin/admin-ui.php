@@ -90,8 +90,14 @@ function medshi_imsqz_enqueue_admin_assets($hook) {
         )
     );
     
-    // Get current tab
-    $current_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'dashboard';
+    // Get current tab with nonce verification
+    $tab_nonce_verified = false;
+    if (isset($_GET['_wpnonce']) && wp_verify_nonce(sanitize_key($_GET['_wpnonce']), 'imagesqueeze_tab_nonce')) {
+        $tab_nonce_verified = true;
+    }
+    
+    // Get current tab (only use tab parameter if nonce is verified, otherwise default to dashboard)
+    $current_tab = ($tab_nonce_verified && isset($_GET['tab'])) ? sanitize_key($_GET['tab']) : 'dashboard';
     
     // Enqueue logs-ui.js only on the logs tab
     if ($current_tab === 'logs') {
@@ -124,8 +130,14 @@ function medshi_imsqz_render_admin_page() {
     // Verify request is valid
     $verified = isset($_REQUEST['_wpnonce']) ? wp_verify_nonce(sanitize_key($_REQUEST['_wpnonce']), 'image_squeeze_admin_page') : false;
     
-    // Get current tab, default to dashboard
-    $current_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'dashboard';
+    // Get current tab with nonce verification
+    $tab_nonce_verified = false;
+    if (isset($_GET['_wpnonce']) && wp_verify_nonce(sanitize_key($_GET['_wpnonce']), 'imagesqueeze_tab_nonce')) {
+        $tab_nonce_verified = true;
+    }
+    
+    // Get current tab (only use tab parameter if nonce is verified, otherwise default to dashboard)
+    $current_tab = ($tab_nonce_verified && isset($_GET['tab'])) ? sanitize_key($_GET['tab']) : 'dashboard';
     
     // Define available tabs
     $tabs = array(
@@ -148,7 +160,15 @@ function medshi_imsqz_render_admin_page() {
             // Output tabs
             foreach ($tabs as $tab_id => $tab_name) {
                 $active_class = ($current_tab === $tab_id) ? 'nav-tab-active' : '';
-                $tab_url = add_query_arg(array('page' => 'image-squeeze', 'tab' => $tab_id), admin_url('admin.php'));
+                $tab_nonce = wp_create_nonce('imagesqueeze_tab_nonce');
+                $tab_url = add_query_arg(
+                    array(
+                        'page' => 'image-squeeze', 
+                        'tab' => $tab_id,
+                        '_wpnonce' => $tab_nonce
+                    ), 
+                    admin_url('admin.php')
+                );
                 printf(
                     '<a href="%s" class="nav-tab %s" data-tab="%s">%s</a>',
                     esc_url($tab_url),

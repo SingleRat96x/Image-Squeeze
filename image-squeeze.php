@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Image Squeeze
+ * Plugin Name: Image Squeeze – Optimize WebP, Compress Images, Boost Performance
  * Plugin URI: 
  * Description: Optimize and compress images to improve site performance.
  * Version: 1.0.0
