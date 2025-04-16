@@ -14,16 +14,16 @@ defined('ABSPATH') || exit;
  * @param int $attachment_id The WordPress attachment ID.
  * @return bool|WP_Error True on success, WP_Error on failure.
  */
-function image_squeeze_process_image( $attachment_id ) {
+function medshi_imsqz_process_image( $attachment_id ) {
     // Check if the attachment exists and is an image
     if ( ! wp_attachment_is_image( $attachment_id ) ) {
-        return new WP_Error( 'invalid_image', __( 'The attachment is not a valid image.', 'image-squeeze' ) );
+        return new WP_Error( 'invalid_image', __( 'The attachment is not a valid image.', 'imagesqueeze' ) );
     }
 
     // Get attachment metadata
     $metadata = wp_get_attachment_metadata( $attachment_id );
     if ( ! $metadata || empty( $metadata['file'] ) ) {
-        return new WP_Error( 'invalid_metadata', __( 'Could not retrieve image metadata.', 'image-squeeze' ) );
+        return new WP_Error( 'invalid_metadata', __( 'Could not retrieve image metadata.', 'imagesqueeze' ) );
     }
 
     // Get mime type
@@ -33,12 +33,12 @@ function image_squeeze_process_image( $attachment_id ) {
     if ( ! in_array( $mime_type, array( 'image/jpeg', 'image/png' ), true ) ) {
         return new WP_Error( 'unsupported_type', 
             /* translators: %s is the MIME type of the unsupported image */
-            sprintf( __( 'Image type %s is not supported for WebP conversion.', 'image-squeeze' ), $mime_type )
+            sprintf( __( 'Image type %s is not supported for WebP conversion.', 'imagesqueeze' ), $mime_type )
         );
     }
 
     // Determine which image processing library to use
-    $image_processor = _image_squeeze_get_processor();
+    $image_processor = medshi_imsqz_get_processor();
     if ( is_wp_error( $image_processor ) ) {
         return $image_processor;
     }
@@ -56,7 +56,7 @@ function image_squeeze_process_image( $attachment_id ) {
     $total_saved_bytes = 0;
     
     // Process the full-size image
-    $webp_result = _image_squeeze_convert_to_webp( $file_path, $image_processor );
+    $webp_result = medshi_imsqz_convert_to_webp( $file_path, $image_processor );
     if ( is_wp_error( $webp_result ) ) {
         // Store error information
         update_post_meta( $attachment_id, '_imagesqueeze_status', 'failed' );
@@ -82,7 +82,7 @@ function image_squeeze_process_image( $attachment_id ) {
             }
             
             $size_file_path = $file_dir . '/' . $size_data['file'];
-            $size_result = _image_squeeze_convert_to_webp( $size_file_path, $image_processor );
+            $size_result = medshi_imsqz_convert_to_webp( $size_file_path, $image_processor );
             
             if (is_array($size_result) && isset($size_result['success']) && $size_result['success']) {
                 $webp_sizes[$size_name] = true;
@@ -117,7 +117,7 @@ function image_squeeze_process_image( $attachment_id ) {
  *
  * @return string|WP_Error 'gd', 'imagick', or WP_Error if none available.
  */
-function _image_squeeze_get_processor() {
+function medshi_imsqz_get_processor() {
     // Check for Imagick first (usually better quality)
     if ( extension_loaded( 'imagick' ) && class_exists( 'Imagick' ) ) {
         return 'imagick';
@@ -131,7 +131,7 @@ function _image_squeeze_get_processor() {
     // No supported library available
     return new WP_Error(
         'no_image_processor',
-        __( 'No compatible image processing library found. Please install Imagick or GD with WebP support.', 'image-squeeze' )
+        __( 'No compatible image processing library found. Please install Imagick or GD with WebP support.', 'imagesqueeze' )
     );
 }
 
@@ -142,10 +142,10 @@ function _image_squeeze_get_processor() {
  * @param string $processor Image processor to use ('gd' or 'imagick').
  * @return bool|WP_Error|array True on success (legacy), WP_Error on failure, or array with saved bytes on success.
  */
-function _image_squeeze_convert_to_webp( $source_path, $processor ) {
+function medshi_imsqz_convert_to_webp( $source_path, $processor ) {
     // Check if source file exists
     if ( ! file_exists( $source_path ) || ! is_readable( $source_path ) ) {
-        return new WP_Error( 'source_not_found', __( 'Source image file not found or not readable.', 'image-squeeze' ) );
+        return new WP_Error( 'source_not_found', __( 'Source image file not found or not readable.', 'imagesqueeze' ) );
     }
     
     // Check if destination directory is writable using WP_Filesystem
@@ -160,7 +160,7 @@ function _image_squeeze_convert_to_webp( $source_path, $processor ) {
     
     // Check if destination is writable with WP_Filesystem
     if ( ! $wp_filesystem->is_writable( $dest_dir ) ) {
-        return new WP_Error( 'dest_not_writable', __( 'Destination directory is not writable.', 'image-squeeze' ) );
+        return new WP_Error( 'dest_not_writable', __( 'Destination directory is not writable.', 'imagesqueeze' ) );
     }
     
     // Define WebP destination path (append .webp to original filename)
@@ -191,7 +191,7 @@ function _image_squeeze_convert_to_webp( $source_path, $processor ) {
             $image->destroy();
             
             if ( ! $result ) {
-                return new WP_Error( 'webp_conversion_failed', __( 'Failed to create WebP image with Imagick.', 'image-squeeze' ) );
+                return new WP_Error( 'webp_conversion_failed', __( 'Failed to create WebP image with Imagick.', 'imagesqueeze' ) );
             }
         } catch ( Exception $e ) {
             return new WP_Error( 'imagick_error', $e->getMessage() );
@@ -200,7 +200,7 @@ function _image_squeeze_convert_to_webp( $source_path, $processor ) {
         // Get image type
         $image_info = getimagesize( $source_path );
         if ( ! $image_info ) {
-            return new WP_Error( 'invalid_image', __( 'Could not determine image dimensions.', 'image-squeeze' ) );
+            return new WP_Error( 'invalid_image', __( 'Could not determine image dimensions.', 'imagesqueeze' ) );
         }
         
         $image_type = $image_info[2];
@@ -221,11 +221,11 @@ function _image_squeeze_convert_to_webp( $source_path, $processor ) {
                 break;
                 
             default:
-                return new WP_Error( 'unsupported_type', __( 'Unsupported image type for GD processing.', 'image-squeeze' ) );
+                return new WP_Error( 'unsupported_type', __( 'Unsupported image type for GD processing.', 'imagesqueeze' ) );
         }
         
         if ( ! $image ) {
-            return new WP_Error( 'image_creation_failed', __( 'Failed to create image resource.', 'image-squeeze' ) );
+            return new WP_Error( 'image_creation_failed', __( 'Failed to create image resource.', 'imagesqueeze' ) );
         }
         
         // Convert to WebP
@@ -233,15 +233,15 @@ function _image_squeeze_convert_to_webp( $source_path, $processor ) {
         imagedestroy( $image );
         
         if ( ! $result ) {
-            return new WP_Error( 'webp_conversion_failed', __( 'Failed to create WebP image with GD.', 'image-squeeze' ) );
+            return new WP_Error( 'webp_conversion_failed', __( 'Failed to create WebP image with GD.', 'imagesqueeze' ) );
         }
     } else {
-        return new WP_Error( 'invalid_processor', __( 'Invalid image processor specified.', 'image-squeeze' ) );
+        return new WP_Error( 'invalid_processor', __( 'Invalid image processor specified.', 'imagesqueeze' ) );
     }
     
     // Verify the WebP file was created
     if ( ! file_exists( $dest_path ) ) {
-        return new WP_Error( 'webp_missing', __( 'WebP file was not created.', 'image-squeeze' ) );
+        return new WP_Error( 'webp_missing', __( 'WebP file was not created.', 'imagesqueeze' ) );
     }
     
     // Get WebP file size and calculate savings

@@ -15,7 +15,7 @@ defined('ABSPATH') || exit;
  * @param string $meta_value Meta value to check.
  * @return int Count of matching attachments.
  */
-function image_squeeze_count_attachments_by_meta($meta_key, $meta_value) {
+function medshi_imsqz_count_attachments_by_meta($meta_key, $meta_value) {
     return count(
         get_posts(array(
             'post_type'   => 'attachment',
@@ -36,12 +36,12 @@ function image_squeeze_count_attachments_by_meta($meta_key, $meta_value) {
  * @param string $type Job type: 'full' or 'retry'.
  * @return bool|WP_Error True on success, WP_Error on failure.
  */
-function image_squeeze_create_job( $type = 'full' ) {
+function medshi_imsqz_create_job( $type = 'full' ) {
     global $wpdb;
     
     // Validate job type
     if ( ! in_array( $type, array( 'full', 'retry' ), true ) ) {
-        return new WP_Error( 'invalid_job_type', __( 'Invalid job type specified.', 'image-squeeze' ) );
+        return new WP_Error( 'invalid_job_type', __( 'Invalid job type specified.', 'imagesqueeze' ) );
     }
     
     // Get image attachments based on job type
@@ -109,7 +109,7 @@ function image_squeeze_create_job( $type = 'full' ) {
     if ( empty( $image_ids ) ) {
         return new WP_Error(
             'no_images_found',
-            __( 'No images found for optimization.', 'image-squeeze' )
+            __( 'No images found for optimization.', 'imagesqueeze' )
         );
     }
     
@@ -138,7 +138,7 @@ function image_squeeze_create_job( $type = 'full' ) {
  * @param array|string $job_or_type Either the complete job data array or just the job type (string).
  * @return void
  */
-function image_squeeze_log_completed_job( $job_or_type ) {
+function medshi_imsqz_log_completed_job( $job_or_type ) {
     // Check if we received the full job data or just the type
     if (is_array($job_or_type)) {
         // We received the complete job data
@@ -211,7 +211,7 @@ function image_squeeze_log_completed_job( $job_or_type ) {
  *
  * @return array Job progress information.
  */
-function image_squeeze_get_job_progress() {
+function medshi_imsqz_get_job_progress() {
     // Get current job
     $current_job = get_option( 'imagesqueeze_current_job', array() );
     
@@ -219,17 +219,21 @@ function image_squeeze_get_job_progress() {
     if ( empty( $current_job ) ) {
         return array(
             'error' => true,
-            'message' => __( 'No active job found.', 'image-squeeze' ),
+            'message' => __( 'No active job found.', 'imagesqueeze' ),
         );
     }
     
-    // Return job status information
+    // Calculate progress
+    $total = isset( $current_job['total'] ) ? intval( $current_job['total'] ) : 0;
+    $done = isset( $current_job['done'] ) ? intval( $current_job['done'] ) : 0;
+    $status = isset( $current_job['status'] ) ? $current_job['status'] : '';
+    
+    // Return progress information
     return array(
-        'success' => true,
-        'status' => isset( $current_job['status'] ) ? $current_job['status'] : 'unknown',
-        'done' => isset( $current_job['done'] ) ? (int) $current_job['done'] : 0,
-        'total' => isset( $current_job['total'] ) ? (int) $current_job['total'] : 0,
-        'cleanup_on_next_visit' => isset( $current_job['cleanup_on_next_visit'] ) ? (bool) $current_job['cleanup_on_next_visit'] : false,
+        'status' => $status,
+        'total' => $total,
+        'done' => $done,
+        'percent' => ( $total > 0 ) ? round( ( $done / $total ) * 100 ) : 0,
     );
 }
 
@@ -238,7 +242,7 @@ function image_squeeze_get_job_progress() {
  *
  * @return array|null Job status after recovery, or null if no job exists.
  */
-function image_squeeze_check_and_recover_job() {
+function medshi_imsqz_check_and_recover_job() {
     // Load the current job
     $current_job = get_option( 'imagesqueeze_current_job', array() );
     
@@ -258,15 +262,14 @@ function image_squeeze_check_and_recover_job() {
         
         // Log the completed job
         if ( isset( $current_job['type'] ) ) {
-            // Pass the entire job object
-            image_squeeze_log_completed_job( $current_job );
+            medshi_imsqz_log_completed_job( $current_job );
         }
+        
+        return $current_job;
     }
     
-    // Case 2: Job is completed and marked for cleanup
-    if ( isset( $current_job['status'] ) && $current_job['status'] === 'completed' && 
-         isset( $current_job['cleanup_on_next_visit'] ) && $current_job['cleanup_on_next_visit'] === true ) {
-        
+    // Case 2: Job is marked for cleanup
+    if ( isset( $current_job['cleanup_on_next_visit'] ) && $current_job['cleanup_on_next_visit'] ) {
         // Delete job and queue
         delete_option( 'imagesqueeze_current_job' );
         delete_option( 'imagesqueeze_job_queue' );
@@ -274,24 +277,25 @@ function image_squeeze_check_and_recover_job() {
         return null;
     }
     
+    // Return the current job
     return $current_job;
 }
 
 /**
  * AJAX handler for creating a new job.
  */
-function image_squeeze_ajax_create_job() {
+function medshi_imsqz_ajax_create_job() {
     // Check if user has required capability
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_send_json_error( array(
-            'message' => __( 'You do not have permission to perform this action.', 'image-squeeze' )
+            'message' => __( 'You do not have permission to perform this action.', 'imagesqueeze' )
         ) );
     }
     
     // Verify nonce
     if ( ! check_ajax_referer( 'image_squeeze_nonce', 'security', false ) ) {
         wp_send_json_error( array(
-            'message' => __( 'Security check failed.', 'image-squeeze' )
+            'message' => __( 'Security check failed.', 'imagesqueeze' )
         ) );
     }
     
@@ -299,7 +303,7 @@ function image_squeeze_ajax_create_job() {
     $job_type = isset( $_POST['job_type'] ) ? sanitize_text_field( wp_unslash( $_POST['job_type'] ) ) : 'full';
     
     // Create the job
-    $result = image_squeeze_create_job( $job_type );
+    $result = medshi_imsqz_create_job( $job_type );
     
     // Check for errors
     if ( is_wp_error( $result ) ) {
@@ -310,7 +314,7 @@ function image_squeeze_ajax_create_job() {
     
     // Return success response
     wp_send_json_success( array(
-        'message' => __( 'Optimization job created successfully.', 'image-squeeze' ),
+        'message' => __( 'Optimization job created successfully.', 'imagesqueeze' ),
         'job_type' => $job_type
     ) );
 }
@@ -318,23 +322,23 @@ function image_squeeze_ajax_create_job() {
 /**
  * AJAX handler for getting job progress.
  */
-function image_squeeze_ajax_get_progress() {
+function medshi_imsqz_ajax_get_progress() {
     // Check if user has required capability
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_send_json_error( array(
-            'message' => __( 'You do not have permission to perform this action.', 'image-squeeze' )
+            'message' => __( 'You do not have permission to perform this action.', 'imagesqueeze' )
         ) );
     }
     
     // Verify nonce
     if ( ! check_ajax_referer( 'image_squeeze_nonce', 'security', false ) ) {
         wp_send_json_error( array(
-            'message' => __( 'Security check failed.', 'image-squeeze' )
+            'message' => __( 'Security check failed.', 'imagesqueeze' )
         ) );
     }
     
     // Get job progress
-    $progress = image_squeeze_get_job_progress();
+    $progress = medshi_imsqz_get_job_progress();
     
     // Check for errors
     if ( isset( $progress['error'] ) && $progress['error'] ) {
@@ -348,7 +352,7 @@ function image_squeeze_ajax_get_progress() {
         'status' => $progress['status'],
         'done' => $progress['done'],
         'total' => $progress['total'],
-        'cleanup_on_next_visit' => $progress['cleanup_on_next_visit']
+        'percent' => $progress['percent']
     ) );
 }
 
@@ -357,13 +361,13 @@ function image_squeeze_ajax_get_progress() {
  *
  * @return bool|WP_Error True on success, WP_Error on failure.
  */
-function image_squeeze_cancel_job() {
+function medshi_imsqz_cancel_job() {
     // Get current job
     $current_job = get_option( 'imagesqueeze_current_job', array() );
     
     // Check if there is an active job
     if ( empty( $current_job ) ) {
-        return new WP_Error( 'no_job', __( 'No active job to cancel.', 'image-squeeze' ) );
+        return new WP_Error( 'no_job', __( 'No active job to cancel.', 'imagesqueeze' ) );
     }
     
     // Clear the job queue
@@ -382,23 +386,23 @@ function image_squeeze_cancel_job() {
 /**
  * AJAX handler for cancelling a job.
  */
-function image_squeeze_ajax_cancel_job() {
+function medshi_imsqz_ajax_cancel_job() {
     // Check if user has required capability
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_send_json_error( array(
-            'message' => __( 'You do not have permission to perform this action.', 'image-squeeze' )
+            'message' => __( 'You do not have permission to perform this action.', 'imagesqueeze' )
         ) );
     }
     
     // Verify nonce
     if ( ! check_ajax_referer( 'image_squeeze_nonce', 'security', false ) ) {
         wp_send_json_error( array(
-            'message' => __( 'Security check failed.', 'image-squeeze' )
+            'message' => __( 'Security check failed.', 'imagesqueeze' )
         ) );
     }
     
     // Cancel the job
-    $result = image_squeeze_cancel_job();
+    $result = medshi_imsqz_cancel_job();
     
     // Check for errors
     if ( is_wp_error( $result ) ) {
@@ -409,7 +413,7 @@ function image_squeeze_ajax_cancel_job() {
     
     // Return success response
     wp_send_json_success( array(
-        'message' => __( 'Optimization job cancelled successfully.', 'image-squeeze' )
+        'message' => __( 'Optimization job cancelled successfully.', 'imagesqueeze' )
     ) );
 }
 
@@ -419,7 +423,7 @@ function image_squeeze_ajax_cancel_job() {
  * @param array $job The job data.
  * @return array Modified job data.
  */
-function image_squeeze_complete_job($job) {
+function medshi_imsqz_complete_job($job) {
     if (!is_array($job)) {
         $job = array();
     }
@@ -471,9 +475,9 @@ function image_squeeze_complete_job($job) {
 }
 
 // Register AJAX actions
-add_action( 'wp_ajax_imagesqueeze_create_job', 'image_squeeze_ajax_create_job' );
-add_action( 'wp_ajax_imagesqueeze_get_progress', 'image_squeeze_ajax_get_progress' );
-add_action( 'wp_ajax_imagesqueeze_cancel_job', 'image_squeeze_ajax_cancel_job' );
+add_action( 'wp_ajax_imagesqueeze_create_job', 'medshi_imsqz_ajax_create_job' );
+add_action( 'wp_ajax_imagesqueeze_get_progress', 'medshi_imsqz_ajax_get_progress' );
+add_action( 'wp_ajax_imagesqueeze_cancel_job', 'medshi_imsqz_ajax_cancel_job' );
 
 /**
  * Fix timestamp formats in existing log entries.
@@ -481,7 +485,7 @@ add_action( 'wp_ajax_imagesqueeze_cancel_job', 'image_squeeze_ajax_cancel_job' )
  *
  * @return void
  */
-function image_squeeze_fix_log_timestamps() {
+function medshi_imsqz_fix_log_timestamps() {
     // Get existing logs
     $logs = get_option('imagesqueeze_optimization_log', array());
     
@@ -562,14 +566,14 @@ function image_squeeze_fix_log_timestamps() {
 }
 
 // Run timestamp fix on plugin initialization
-add_action('admin_init', 'image_squeeze_fix_log_timestamps');
+add_action('admin_init', 'medshi_imsqz_fix_log_timestamps');
 
 /**
  * Clear all optimization logs.
  *
  * @return bool True on success.
  */
-function image_squeeze_clear_logs() {
+function medshi_imsqz_clear_logs() {
     // Delete all logs by saving an empty array
     update_option('imagesqueeze_optimization_log', array());
     
@@ -579,29 +583,29 @@ function image_squeeze_clear_logs() {
 /**
  * AJAX handler for clearing all logs.
  */
-function image_squeeze_ajax_clear_logs() {
+function medshi_imsqz_ajax_clear_logs() {
     // Check if user has required capability
     if (!current_user_can('manage_options')) {
         wp_send_json_error(array(
-            'message' => __('You do not have permission to perform this action.', 'image-squeeze')
+            'message' => __('You do not have permission to perform this action.', 'imagesqueeze')
         ));
     }
     
     // Verify nonce
     if (!check_ajax_referer('image_squeeze_nonce', 'security', false)) {
         wp_send_json_error(array(
-            'message' => __('Security check failed.', 'image-squeeze')
+            'message' => __('Security check failed.', 'imagesqueeze')
         ));
     }
     
     // Clear the logs
-    $result = image_squeeze_clear_logs();
+    $result = medshi_imsqz_clear_logs();
     
     // Return success response
     wp_send_json_success(array(
-        'message' => __('All optimization logs cleared successfully.', 'image-squeeze')
+        'message' => __('All optimization logs cleared successfully.', 'imagesqueeze')
     ));
 }
 
 // Register the AJAX action for clearing logs
-add_action('wp_ajax_imagesqueeze_clear_logs', 'image_squeeze_ajax_clear_logs'); 
+add_action('wp_ajax_imagesqueeze_clear_logs', 'medshi_imsqz_ajax_clear_logs'); 

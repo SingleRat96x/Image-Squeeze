@@ -11,12 +11,12 @@ defined('ABSPATH') || exit;
 /**
  * Register plugin settings.
  */
-function image_squeeze_register_settings() {
+function medshi_imsqz_register_settings() {
     // Register settings group
     register_setting(
         'image_squeeze_settings_group',   // Option group
         'imagesqueeze_settings',          // Option name
-        'image_squeeze_sanitize_settings' // Sanitization callback
+        'medshi_imsqz_sanitize_settings' // Sanitization callback
     );
 
     // Set default settings if they don't exist
@@ -35,16 +35,16 @@ function image_squeeze_register_settings() {
     // Add settings section
     add_settings_section(
         'image_squeeze_general_section',          // ID
-        __('General Settings', 'image-squeeze'),  // Title
-        'image_squeeze_general_section_callback', // Callback
+        __('General Settings', 'imagesqueeze'),  // Title
+        'medshi_imsqz_general_section_callback', // Callback
         'image_squeeze_settings_page'             // Page
     );
     
     // Add compression quality field
     add_settings_field(
         'quality',                                    // ID
-        __('Compression Quality (%)', 'image-squeeze'), // Title
-        'image_squeeze_quality_field_callback',       // Callback
+        __('Compression Quality (%)', 'imagesqueeze'), // Title
+        'medshi_imsqz_quality_field_callback',       // Callback
         'image_squeeze_settings_page',                // Page
         'image_squeeze_general_section'               // Section
     );
@@ -52,8 +52,8 @@ function image_squeeze_register_settings() {
     // Add WebP delivery field
     add_settings_field(
         'webp_delivery',                              // ID
-        __('Serve WebP Images Automatically', 'image-squeeze'), // Title
-        'image_squeeze_webp_delivery_field_callback', // Callback
+        __('Serve WebP Images Automatically', 'imagesqueeze'), // Title
+        'medshi_imsqz_webp_delivery_field_callback', // Callback
         'image_squeeze_settings_page',                // Page
         'image_squeeze_general_section'               // Section
     );
@@ -61,8 +61,8 @@ function image_squeeze_register_settings() {
     // Add auto-retry field
     add_settings_field(
         'retry_on_next',                              // ID
-        __('Retry Failed Images Automatically', 'image-squeeze'), // Title
-        'image_squeeze_retry_field_callback',         // Callback
+        __('Retry Failed Images Automatically', 'imagesqueeze'), // Title
+        'medshi_imsqz_retry_field_callback',         // Callback
         'image_squeeze_settings_page',                // Page
         'image_squeeze_general_section'               // Section
     );
@@ -70,8 +70,8 @@ function image_squeeze_register_settings() {
     // Add max output size field
     add_settings_field(
         'max_output_size_kb',                           // ID
-        __('Maximum Output File Size (KB)', 'image-squeeze'), // Title
-        'image_squeeze_max_size_field_callback',        // Callback
+        __('Maximum Output File Size (KB)', 'imagesqueeze'), // Title
+        'medshi_imsqz_max_size_field_callback',        // Callback
         'image_squeeze_settings_page',                  // Page
         'image_squeeze_general_section'                 // Section
     );
@@ -79,13 +79,13 @@ function image_squeeze_register_settings() {
     // Add auto-optimize on upload field
     add_settings_field(
         'optimize_on_upload',                           // ID
-        __('Auto-Optimize on Upload', 'image-squeeze'), // Title
-        'image_squeeze_auto_optimize_field_callback',   // Callback
+        __('Auto-Optimize on Upload', 'imagesqueeze'), // Title
+        'medshi_imsqz_auto_optimize_field_callback',   // Callback
         'image_squeeze_settings_page',                  // Page
         'image_squeeze_general_section'                 // Section
     );
 }
-add_action('admin_init', 'image_squeeze_register_settings');
+add_action('admin_init', 'medshi_imsqz_register_settings');
 
 /**
  * Sanitize settings input.
@@ -93,7 +93,7 @@ add_action('admin_init', 'image_squeeze_register_settings');
  * @param array $input The settings input array.
  * @return array Sanitized settings array.
  */
-function image_squeeze_sanitize_settings($input) {
+function medshi_imsqz_sanitize_settings($input) {
     $output = [];
     
     // Sanitize the quality slider value (ensure it's between 50-100)
@@ -117,14 +117,14 @@ function image_squeeze_sanitize_settings($input) {
 /**
  * Render settings section description.
  */
-function image_squeeze_general_section_callback() {
-    echo '<p>' . esc_html__('Configure general plugin settings below.', 'image-squeeze') . '</p>';
+function medshi_imsqz_general_section_callback() {
+    echo '<p>' . esc_html__('Configure general plugin settings below.', 'imagesqueeze') . '</p>';
 }
 
 /**
  * Render compression quality slider field.
  */
-function image_squeeze_quality_field_callback() {
+function medshi_imsqz_quality_field_callback() {
     $settings = get_option('imagesqueeze_settings', []);
     $quality = isset($settings['quality']) ? intval($settings['quality']) : 80;
     ?>
@@ -148,7 +148,7 @@ function image_squeeze_quality_field_callback() {
         </span>
     </div>
     <p class="description">
-        <?php esc_html_e('Lower values reduce file size more, but may slightly affect visual quality. 80% is recommended for most websites.', 'image-squeeze'); ?>
+        <?php esc_html_e('Lower values reduce file size more, but may slightly affect visual quality. 80% is recommended for most websites.', 'imagesqueeze'); ?>
     </p>
     <?php
 }
@@ -156,7 +156,7 @@ function image_squeeze_quality_field_callback() {
 /**
  * Render WebP delivery field.
  */
-function image_squeeze_webp_delivery_field_callback() {
+function medshi_imsqz_webp_delivery_field_callback() {
     $options = get_option('imagesqueeze_settings');
     $checked = isset($options['webp_delivery']) ? $options['webp_delivery'] : true;
     ?>
@@ -168,13 +168,13 @@ function image_squeeze_webp_delivery_field_callback() {
             value="1" 
             <?php checked(1, $checked); ?>
         />
-        <?php esc_html_e('Serve WebP Images Automatically', 'image-squeeze'); ?>
+        <?php esc_html_e('Serve WebP Images Automatically', 'imagesqueeze'); ?>
     </label>
     <p class="description">
-        <?php esc_html_e('Automatically serves WebP versions of your images to supported browsers. If the browser doesn\'t support WebP, it will fall back to the original image.', 'image-squeeze'); ?>
+        <?php esc_html_e('Automatically serves WebP versions of your images to supported browsers. If the browser doesn\'t support WebP, it will fall back to the original image.', 'imagesqueeze'); ?>
     </p>
     <p class="description" style="margin-top: 8px;">
-        <?php esc_html_e('You might want to disable this if you have CDN conflicts or theme compatibility issues.', 'image-squeeze'); ?>
+        <?php esc_html_e('You might want to disable this if you have CDN conflicts or theme compatibility issues.', 'imagesqueeze'); ?>
     </p>
     <?php
 }
@@ -182,7 +182,7 @@ function image_squeeze_webp_delivery_field_callback() {
 /**
  * Render auto-retry field.
  */
-function image_squeeze_retry_field_callback() {
+function medshi_imsqz_retry_field_callback() {
     $options = get_option('imagesqueeze_settings');
     $checked = isset($options['retry_on_next']) ? $options['retry_on_next'] : true;
     ?>
@@ -194,10 +194,10 @@ function image_squeeze_retry_field_callback() {
             value="1" 
             <?php checked(1, $checked); ?>
         />
-        <?php esc_html_e('Retry Failed Images Automatically', 'image-squeeze'); ?>
+        <?php esc_html_e('Retry Failed Images Automatically', 'imagesqueeze'); ?>
     </label>
     <p class="description">
-        <?php esc_html_e('Automatically reprocess failed images when starting the next optimization job.', 'image-squeeze'); ?>
+        <?php esc_html_e('Automatically reprocess failed images when starting the next optimization job.', 'imagesqueeze'); ?>
     </p>
     <?php
 }
@@ -205,7 +205,7 @@ function image_squeeze_retry_field_callback() {
 /**
  * Render max output size field.
  */
-function image_squeeze_max_size_field_callback() {
+function medshi_imsqz_max_size_field_callback() {
     $settings = get_option('imagesqueeze_settings', []);
     $max_size = isset($settings['max_output_size_kb']) ? intval($settings['max_output_size_kb']) : 0;
     ?>
@@ -218,12 +218,12 @@ function image_squeeze_max_size_field_callback() {
         class="small-text"
         aria-describedby="max-size-description"
     />
-    <span><?php esc_html_e('KB', 'image-squeeze'); ?></span>
+    <span><?php esc_html_e('KB', 'imagesqueeze'); ?></span>
     <p class="description" id="max-size-description">
-        <?php esc_html_e('If set, the plugin will attempt to reduce optimized image size below this limit (while still respecting the selected compression quality).', 'image-squeeze'); ?>
+        <?php esc_html_e('If set, the plugin will attempt to reduce optimized image size below this limit (while still respecting the selected compression quality).', 'imagesqueeze'); ?>
     </p>
     <p class="description">
-        <?php esc_html_e('Leave as 0 to disable this feature.', 'image-squeeze'); ?>
+        <?php esc_html_e('Leave as 0 to disable this feature.', 'imagesqueeze'); ?>
     </p>
     <?php
 }
@@ -231,7 +231,7 @@ function image_squeeze_max_size_field_callback() {
 /**
  * Render auto-optimize on upload field.
  */
-function image_squeeze_auto_optimize_field_callback() {
+function medshi_imsqz_auto_optimize_field_callback() {
     $options = get_option('imagesqueeze_settings');
     $checked = isset($options['optimize_on_upload']) ? $options['optimize_on_upload'] : false;
     ?>
@@ -243,13 +243,13 @@ function image_squeeze_auto_optimize_field_callback() {
             value="1" 
             <?php checked(1, $checked); ?>
         />
-        <?php esc_html_e('Auto-Optimize on Upload', 'image-squeeze'); ?>
+        <?php esc_html_e('Auto-Optimize on Upload', 'imagesqueeze'); ?>
     </label>
     <p class="description">
-        <?php esc_html_e('Automatically compress and convert new uploads to WebP. Original image (JPG/PNG) will be deleted after successful conversion.', 'image-squeeze'); ?>
+        <?php esc_html_e('Automatically compress and convert new uploads to WebP. Original image (JPG/PNG) will be deleted after successful conversion.', 'imagesqueeze'); ?>
     </p>
     <p class="description" style="margin-top: 8px;">
-        <?php esc_html_e('This is ideal for WooCommerce or content-heavy sites with frequent uploads.', 'image-squeeze'); ?>
+        <?php esc_html_e('This is ideal for WooCommerce or content-heavy sites with frequent uploads.', 'imagesqueeze'); ?>
     </p>
     <?php
 }
@@ -257,7 +257,7 @@ function image_squeeze_auto_optimize_field_callback() {
 /**
  * Render the settings UI.
  */
-function image_squeeze_settings_ui() {
+function medshi_imsqz_settings_ui() {
     // Get current settings
     $settings = get_option('imagesqueeze_settings', []);
     $quality = isset($settings['quality']) ? intval($settings['quality']) : 80;
@@ -270,7 +270,7 @@ function image_squeeze_settings_ui() {
         <div class="imagesqueeze-section">
             <h2 class="imagesqueeze-section-title">
                 <span class="dashicons dashicons-admin-generic"></span>
-                <?php esc_html_e('Image Squeeze Settings', 'image-squeeze'); ?>
+                <?php esc_html_e('Image Squeeze Settings', 'imagesqueeze'); ?>
             </h2>
         </div>
         
@@ -281,14 +281,14 @@ function image_squeeze_settings_ui() {
             
             <!-- Optimization Settings -->
             <div class="imagesqueeze-settings-section">
-                <h2><span class="dashicons dashicons-admin-settings"></span> <?php esc_html_e('Optimization Settings', 'image-squeeze'); ?></h2>
+                <h2><span class="dashicons dashicons-admin-settings"></span> <?php esc_html_e('Optimization Settings', 'imagesqueeze'); ?></h2>
                 
                 <table class="form-table" role="presentation">
                     <tbody>
                         <!-- Quality Slider -->
                         <tr>
                             <th scope="row">
-                                <label for="quality-slider"><?php esc_html_e('Compression Quality', 'image-squeeze'); ?></label>
+                                <label for="quality-slider"><?php esc_html_e('Compression Quality', 'imagesqueeze'); ?></label>
                             </th>
                             <td>
                                 <div class="quality-slider-container">
@@ -311,7 +311,7 @@ function image_squeeze_settings_ui() {
                                     </span>
                                 </div>
                                 <p class="description">
-                                    <?php esc_html_e('Controls the compression ratio for all optimized images. Lower values reduce file size more, but may slightly affect visual quality. 80% is recommended for most websites.', 'image-squeeze'); ?>
+                                    <?php esc_html_e('Controls the compression ratio for all optimized images. Lower values reduce file size more, but may slightly affect visual quality. 80% is recommended for most websites.', 'imagesqueeze'); ?>
                                 </p>
                             </td>
                         </tr>
@@ -319,7 +319,7 @@ function image_squeeze_settings_ui() {
                         <!-- Max File Size -->
                         <tr>
                             <th scope="row">
-                                <label for="max_output_size_kb"><?php esc_html_e('Maximum Output File Size', 'image-squeeze'); ?></label>
+                                <label for="max_output_size_kb"><?php esc_html_e('Maximum Output File Size', 'imagesqueeze'); ?></label>
                             </th>
                             <td>
                                 <input 
@@ -331,12 +331,12 @@ function image_squeeze_settings_ui() {
                                     class="small-text"
                                     aria-describedby="max-size-description"
                                 />
-                                <span><?php esc_html_e('KB', 'image-squeeze'); ?></span>
+                                <span><?php esc_html_e('KB', 'imagesqueeze'); ?></span>
                                 <p class="description" id="max-size-description">
-                                    <?php esc_html_e('If set, the plugin will attempt to reduce optimized image size below this limit (while still respecting the selected compression quality).', 'image-squeeze'); ?>
+                                    <?php esc_html_e('If set, the plugin will attempt to reduce optimized image size below this limit (while still respecting the selected compression quality).', 'imagesqueeze'); ?>
                                 </p>
                                 <p class="description">
-                                    <?php esc_html_e('Leave blank or 0 to disable max file size targeting.', 'image-squeeze'); ?>
+                                    <?php esc_html_e('Leave blank or 0 to disable max file size targeting.', 'imagesqueeze'); ?>
                                 </p>
                             </td>
                         </tr>
@@ -346,14 +346,14 @@ function image_squeeze_settings_ui() {
             
             <!-- WebP Settings -->
             <div class="imagesqueeze-settings-section">
-                <h2><span class="dashicons dashicons-images-alt2"></span> <?php esc_html_e('WebP Settings', 'image-squeeze'); ?></h2>
+                <h2><span class="dashicons dashicons-images-alt2"></span> <?php esc_html_e('WebP Settings', 'imagesqueeze'); ?></h2>
                 
                 <table class="form-table" role="presentation">
                     <tbody>
                         <!-- WebP Delivery -->
                         <tr>
                             <th scope="row">
-                                <label for="webp_delivery"><?php esc_html_e('Serve WebP Images', 'image-squeeze'); ?></label>
+                                <label for="webp_delivery"><?php esc_html_e('Serve WebP Images', 'imagesqueeze'); ?></label>
                             </th>
                             <td>
                                 <div class="imagesqueeze-toggle-container">
@@ -366,14 +366,14 @@ function image_squeeze_settings_ui() {
                                             <?php checked(1, $webp_enabled); ?>
                                         />
                                         <span class="imagesqueeze-toggle-slider"></span>
-                                        <span class="imagesqueeze-toggle-label"><?php esc_html_e('Serve WebP Images Automatically', 'image-squeeze'); ?></span>
+                                        <span class="imagesqueeze-toggle-label"><?php esc_html_e('Serve WebP Images Automatically', 'imagesqueeze'); ?></span>
                                     </label>
                                 </div>
                                 <p class="description">
-                                    <?php esc_html_e('Automatically serves WebP versions of your images to supported browsers. If the browser doesn\'t support WebP, it will fall back to the original image.', 'image-squeeze'); ?>
+                                    <?php esc_html_e('Automatically serves WebP versions of your images to supported browsers. If the browser doesn\'t support WebP, it will fall back to the original image.', 'imagesqueeze'); ?>
                                 </p>
                                 <p class="description">
-                                    <?php esc_html_e('You might want to disable this if you have CDN conflicts or theme compatibility issues.', 'image-squeeze'); ?>
+                                    <?php esc_html_e('You might want to disable this if you have CDN conflicts or theme compatibility issues.', 'imagesqueeze'); ?>
                                 </p>
                             </td>
                         </tr>
@@ -383,14 +383,14 @@ function image_squeeze_settings_ui() {
             
             <!-- Automation Settings -->
             <div class="imagesqueeze-settings-section">
-                <h2><span class="dashicons dashicons-update"></span> <?php esc_html_e('Automation Settings', 'image-squeeze'); ?></h2>
+                <h2><span class="dashicons dashicons-update"></span> <?php esc_html_e('Automation Settings', 'imagesqueeze'); ?></h2>
                 
                 <table class="form-table" role="presentation">
                     <tbody>
                         <!-- Auto-Optimize on Upload -->
                         <tr>
                             <th scope="row">
-                                <label for="optimize_on_upload"><?php esc_html_e('Optimize New Uploads', 'image-squeeze'); ?></label>
+                                <label for="optimize_on_upload"><?php esc_html_e('Optimize New Uploads', 'imagesqueeze'); ?></label>
                             </th>
                             <td>
                                 <div class="imagesqueeze-toggle-container">
@@ -403,14 +403,14 @@ function image_squeeze_settings_ui() {
                                             <?php checked(1, $auto_optimize); ?>
                                         />
                                         <span class="imagesqueeze-toggle-slider"></span>
-                                        <span class="imagesqueeze-toggle-label"><?php esc_html_e('Auto-Optimize on Upload', 'image-squeeze'); ?></span>
+                                        <span class="imagesqueeze-toggle-label"><?php esc_html_e('Auto-Optimize on Upload', 'imagesqueeze'); ?></span>
                                     </label>
                                 </div>
                                 <p class="description">
-                                    <?php esc_html_e('Automatically compress and convert new uploads to WebP. Original image (JPG/PNG) will be deleted after successful conversion.', 'image-squeeze'); ?>
+                                    <?php esc_html_e('Automatically compress and convert new uploads to WebP. Original image (JPG/PNG) will be deleted after successful conversion.', 'imagesqueeze'); ?>
                                 </p>
                                 <p class="description">
-                                    <?php esc_html_e('This is ideal for WooCommerce or content-heavy sites with frequent uploads.', 'image-squeeze'); ?>
+                                    <?php esc_html_e('This is ideal for WooCommerce or content-heavy sites with frequent uploads.', 'imagesqueeze'); ?>
                                 </p>
                             </td>
                         </tr>
@@ -418,7 +418,7 @@ function image_squeeze_settings_ui() {
                         <!-- Auto-Retry Failed Images -->
                         <tr>
                             <th scope="row">
-                                <label for="retry_on_next"><?php esc_html_e('Auto-Retry Failed Images', 'image-squeeze'); ?></label>
+                                <label for="retry_on_next"><?php esc_html_e('Auto-Retry Failed Images', 'imagesqueeze'); ?></label>
                             </th>
                             <td>
                                 <div class="imagesqueeze-toggle-container">
@@ -431,11 +431,11 @@ function image_squeeze_settings_ui() {
                                             <?php checked(1, $auto_retry); ?>
                                         />
                                         <span class="imagesqueeze-toggle-slider"></span>
-                                        <span class="imagesqueeze-toggle-label"><?php esc_html_e('Retry Failed Images Automatically', 'image-squeeze'); ?></span>
+                                        <span class="imagesqueeze-toggle-label"><?php esc_html_e('Retry Failed Images Automatically', 'imagesqueeze'); ?></span>
                                     </label>
                                 </div>
                                 <p class="description">
-                                    <?php esc_html_e('Automatically reprocess failed images when starting the next optimization job.', 'image-squeeze'); ?>
+                                    <?php esc_html_e('Automatically reprocess failed images when starting the next optimization job.', 'imagesqueeze'); ?>
                                 </p>
                             </td>
                         </tr>
@@ -444,7 +444,7 @@ function image_squeeze_settings_ui() {
             </div>
             
             <div class="imagesqueeze-save-settings">
-                <?php submit_button(__('Save Settings', 'image-squeeze'), 'primary', 'submit', false); ?>
+                <?php submit_button(__('Save Settings', 'imagesqueeze'), 'primary', 'submit', false); ?>
             </div>
         </form>
     </div>

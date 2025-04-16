@@ -14,10 +14,10 @@ defined('ABSPATH') || exit;
  * This function checks if Apache with proper modules is available for .htaccess rules.
  * If not, it falls back to PHP-based filtering.
  */
-function image_squeeze_init_webp_serving() {
+function medshi_imsqz_init_webp_serving() {
     // Always remove filters first to prevent stacking
-    remove_filter('wp_get_attachment_image_src', 'image_squeeze_filter_image_src');
-    remove_filter('wp_calculate_image_srcset', 'image_squeeze_filter_image_srcset');
+    remove_filter('wp_get_attachment_image_src', 'medshi_imsqz_filter_image_src');
+    remove_filter('wp_calculate_image_srcset', 'medshi_imsqz_filter_image_srcset');
     
     // Skip in admin or AJAX context
     if (is_admin() || (defined('DOING_AJAX') && DOING_AJAX)) {
@@ -35,8 +35,8 @@ function image_squeeze_init_webp_serving() {
     
     // If we're already using filters, hook them up
     if ( $using_filters ) {
-        add_filter( 'wp_get_attachment_image_src', 'image_squeeze_filter_image_src', 10, 4 );
-        add_filter( 'wp_calculate_image_srcset', 'image_squeeze_filter_image_srcset', 10, 5 );
+        add_filter( 'wp_get_attachment_image_src', 'medshi_imsqz_filter_image_src', 10, 4 );
+        add_filter( 'wp_calculate_image_srcset', 'medshi_imsqz_filter_image_srcset', 10, 5 );
         return;
     }
     
@@ -47,8 +47,8 @@ function image_squeeze_init_webp_serving() {
     // If not Apache, fall back to PHP filters
     if ( ! $is_apache ) {
         update_option( 'imagesqueeze_using_filters', true, false );
-        add_filter( 'wp_get_attachment_image_src', 'image_squeeze_filter_image_src', 10, 4 );
-        add_filter( 'wp_calculate_image_srcset', 'image_squeeze_filter_image_srcset', 10, 5 );
+        add_filter( 'wp_get_attachment_image_src', 'medshi_imsqz_filter_image_src', 10, 4 );
+        add_filter( 'wp_calculate_image_srcset', 'medshi_imsqz_filter_image_srcset', 10, 5 );
     }
 }
 
@@ -61,14 +61,14 @@ function image_squeeze_init_webp_serving() {
  * @param bool         $icon          Whether the image should be treated as an icon.
  * @return array|false Modified image data.
  */
-function image_squeeze_filter_image_src( $image, $attachment_id, $size, $icon ) {
+function medshi_imsqz_filter_image_src( $image, $attachment_id, $size, $icon ) {
     // If no image or icon mode, return as is
     if ( ! $image || $icon ) {
         return $image;
     }
     
     // Check if the browser supports WebP
-    if ( ! image_squeeze_browser_supports_webp() ) {
+    if ( ! medshi_imsqz_browser_supports_webp() ) {
         return $image;
     }
     
@@ -124,14 +124,14 @@ function image_squeeze_filter_image_src( $image, $attachment_id, $size, $icon ) 
  * @param int    $attachment_id Image attachment ID.
  * @return array Modified array of image sources.
  */
-function image_squeeze_filter_image_srcset( $sources, $size_array, $image_src, $image_meta, $attachment_id ) {
+function medshi_imsqz_filter_image_srcset( $sources, $size_array, $image_src, $image_meta, $attachment_id ) {
     // If no sources or no attachment ID, return as is
     if ( empty( $sources ) || empty( $attachment_id ) ) {
         return $sources;
     }
     
     // Check if the browser supports WebP
-    if ( ! image_squeeze_browser_supports_webp() ) {
+    if ( ! medshi_imsqz_browser_supports_webp() ) {
         return $sources;
     }
     
@@ -187,7 +187,7 @@ function image_squeeze_filter_image_srcset( $sources, $size_array, $image_src, $
  *
  * @return bool True if the browser supports WebP, false otherwise.
  */
-function image_squeeze_browser_supports_webp() {
+function medshi_imsqz_browser_supports_webp() {
     // Check Accept header for image/webp
     $http_accept = isset($_SERVER['HTTP_ACCEPT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_ACCEPT'])) : '';
     if (strpos($http_accept, 'image/webp') !== false) {
@@ -211,4 +211,4 @@ function image_squeeze_browser_supports_webp() {
 }
 
 // Initialize WebP serving on init with higher priority
-add_action('init', 'image_squeeze_init_webp_serving', 20); 
+add_action('init', 'medshi_imsqz_init_webp_serving', 20); 

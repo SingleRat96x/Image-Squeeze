@@ -6,7 +6,7 @@
  * Version: 1.0.0
  * Author: 
  * Author URI: 
- * Text Domain: image-squeeze
+ * Text Domain: imagesqueeze
  * Domain Path: /languages
  * License: GPL v2 or later
  * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
@@ -18,23 +18,23 @@
 defined('ABSPATH') || exit;
 
 // Define plugin constants.
-define('IMAGESQUEEZE_VERSION', '1.0.0');
-define('IMAGESQUEEZE_PATH', plugin_dir_path(__FILE__));
-define('IMAGESQUEEZE_URL', plugin_dir_url(__FILE__));
+define('MEDSHI_IMSQZ_VERSION', '1.0.0');
+define('MEDSHI_IMSQZ_PATH', plugin_dir_path(__FILE__));
+define('MEDSHI_IMSQZ_URL', plugin_dir_url(__FILE__));
 
 // Include required files.
-require_once IMAGESQUEEZE_PATH . 'includes/job-runner.php';
-require_once IMAGESQUEEZE_PATH . 'includes/job-manager.php';
-require_once IMAGESQUEEZE_PATH . 'includes/image-tools.php';
-require_once IMAGESQUEEZE_PATH . 'includes/logger.php';
-require_once IMAGESQUEEZE_PATH . 'includes/cleanup.php';
-require_once IMAGESQUEEZE_PATH . 'includes/webp-serving.php';
-require_once IMAGESQUEEZE_PATH . 'includes/cleanup-handler.php';
-require_once IMAGESQUEEZE_PATH . 'includes/upload-handler.php';
+require_once MEDSHI_IMSQZ_PATH . 'includes/job-runner.php';
+require_once MEDSHI_IMSQZ_PATH . 'includes/job-manager.php';
+require_once MEDSHI_IMSQZ_PATH . 'includes/image-tools.php';
+require_once MEDSHI_IMSQZ_PATH . 'includes/logger.php';
+require_once MEDSHI_IMSQZ_PATH . 'includes/cleanup.php';
+require_once MEDSHI_IMSQZ_PATH . 'includes/webp-serving.php';
+require_once MEDSHI_IMSQZ_PATH . 'includes/cleanup-handler.php';
+require_once MEDSHI_IMSQZ_PATH . 'includes/upload-handler.php';
 
 // Include admin UI files if in admin.
 if (is_admin()) {
-    require_once IMAGESQUEEZE_PATH . 'admin/admin-ui.php';
+    require_once MEDSHI_IMSQZ_PATH . 'admin/admin-ui.php';
 }
 
 /**
@@ -42,7 +42,7 @@ if (is_admin()) {
  *
  * Injects WebP rules into .htaccess if the server is Apache.
  */
-function image_squeeze_activate() {
+function medshi_imsqz_activate() {
     // Check server compatibility
     $server_software = sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE'] ?? ''));
     // Only proceed if server is Apache.
@@ -96,7 +96,7 @@ function image_squeeze_activate() {
  *
  * Removes WebP rules from .htaccess if the server is Apache.
  */
-function image_squeeze_deactivate() {
+function medshi_imsqz_deactivate() {
     // Check server compatibility
     $server_software = sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE'] ?? ''));
     // Only proceed if server is Apache.
@@ -128,16 +128,16 @@ function image_squeeze_deactivate() {
 /**
  * Initialize admin features and check for job recovery.
  */
-function image_squeeze_admin_init() {
+function medshi_imsqz_admin_init() {
     // Check for and recover any stuck or abandoned jobs
-    if (function_exists('image_squeeze_check_and_recover_job')) {
-        image_squeeze_check_and_recover_job();
+    if (function_exists('medshi_imsqz_check_and_recover_job')) {
+        medshi_imsqz_check_and_recover_job();
     }
 }
 
 // Register activation and deactivation hooks.
-register_activation_hook(__FILE__, 'image_squeeze_activate');
-register_deactivation_hook(__FILE__, 'image_squeeze_deactivate');
+register_activation_hook(__FILE__, 'medshi_imsqz_activate');
+register_deactivation_hook(__FILE__, 'medshi_imsqz_deactivate');
 
 // Register admin initialization hook to check for job recovery
-add_action('admin_init', 'image_squeeze_admin_init'); 
+add_action('admin_init', 'medshi_imsqz_admin_init'); 

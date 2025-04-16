@@ -1,10 +1,11 @@
 // Add the AJAX handler for getting dashboard stats
-add_action('wp_ajax_imagesqueeze_get_dashboard_stats', 'image_squeeze_ajax_get_dashboard_stats');
+add_action('wp_ajax_imagesqueeze_get_dashboard_stats', 'medshi_imsqz_ajax_get_dashboard_stats');
 
 /**
  * AJAX handler for getting dashboard stats
  */
-function image_squeeze_ajax_get_dashboard_stats() {
+ 
+function medshi_imsqz_ajax_get_dashboard_stats() {
     // Set proper headers for JSON response
     header('Content-Type: application/json');
     
@@ -42,12 +43,12 @@ function image_squeeze_ajax_get_dashboard_stats() {
         $total_images = $jpeg_count + $png_count;
         
         // Get optimized and failed counts
-        $optimized_images = image_squeeze_count_attachments_by_meta('_imagesqueeze_optimized', '1');
-        $failed_images = image_squeeze_count_attachments_by_meta('_imagesqueeze_status', 'failed');
+        $optimized_images = medshi_imsqz_count_attachments_by_meta('_imagesqueeze_optimized', '1');
+        $failed_images = medshi_imsqz_count_attachments_by_meta('_imagesqueeze_status', 'failed');
         
         // Get total saved bytes
         $total_saved_bytes = get_option('imagesqueeze_total_saved_bytes', 0);
-        $total_saved = image_squeeze_format_bytes($total_saved_bytes);
+        $total_saved = medshi_imsqz_format_bytes($total_saved_bytes);
         
         // Get last run summary
         $logs = get_option('imagesqueeze_optimization_log', array());
@@ -60,7 +61,7 @@ function image_squeeze_ajax_get_dashboard_stats() {
         
         // Format last run data
         $last_run_saved_bytes = isset($last_run['saved_bytes']) ? intval($last_run['saved_bytes']) : 0;
-        $last_run_saved = image_squeeze_format_bytes($last_run_saved_bytes);
+        $last_run_saved = medshi_imsqz_format_bytes($last_run_saved_bytes);
         
         $last_run_optimized = isset($last_run['optimized']) ? intval($last_run['optimized']) : 0;
         $last_run_failed = isset($last_run['failed']) ? intval($last_run['failed']) : 0;
@@ -156,7 +157,7 @@ function image_squeeze_ajax_get_dashboard_stats() {
 /**
  * Helper function to format bytes
  */
-function image_squeeze_format_bytes($bytes) {
+function medshi_imsqz_format_bytes($bytes) {
     if ($bytes >= 1048576) { // 1MB
         return round($bytes / 1048576, 2) . ' MB';
     } else {

@@ -15,7 +15,7 @@ defined('ABSPATH') || exit;
  * @param int   $attachment_id The attachment ID.
  * @return array The attachment metadata.
  */
-function image_squeeze_handle_upload($metadata, $attachment_id) {
+function medshi_imsqz_handle_upload($metadata, $attachment_id) {
     // Check if auto-optimize is enabled
     $settings = get_option('imagesqueeze_settings', []);
     if (empty($settings['optimize_on_upload'])) {
@@ -53,13 +53,13 @@ function image_squeeze_handle_upload($metadata, $attachment_id) {
     }
     
     // Convert to WebP (use existing function)
-    if (function_exists('image_squeeze_process_image')) {
+    if (function_exists('medshi_imsqz_process_image')) {
         // Process the image but never delete the original
-        $result = image_squeeze_process_image($attachment_id, $quality);
+        $result = medshi_imsqz_process_image($attachment_id, $quality);
     }
     
     return $metadata;
 }
 
 // Hook into WordPress media handling
-add_filter('wp_generate_attachment_metadata', 'image_squeeze_handle_upload', 20, 2); 
+add_filter('wp_generate_attachment_metadata', 'medshi_imsqz_handle_upload', 20, 2); 

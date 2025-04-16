@@ -13,7 +13,7 @@ defined('ABSPATH') || exit;
  *
  * @return array List of orphaned WebP file paths.
  */
-function image_squeeze_find_orphaned_webps() {
+function medshi_imsqz_find_orphaned_webps() {
     // Get the uploads directory
     $upload_dir = wp_upload_dir();
     $base_dir = $upload_dir['basedir'];
@@ -62,7 +62,7 @@ function image_squeeze_find_orphaned_webps() {
  * @param array $webp_files Array of file paths to delete.
  * @return int Number of files deleted.
  */
-function image_squeeze_delete_orphaned_webps( $webp_files ) {
+function medshi_imsqz_delete_orphaned_webps( $webp_files ) {
     // Get the uploads directory for safety check
     $upload_dir = wp_upload_dir();
     $base_dir = $upload_dir['basedir'];

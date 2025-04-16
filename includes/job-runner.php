@@ -14,7 +14,7 @@ defined('ABSPATH') || exit;
  * @param int $batch_size Number of images to process in this batch.
  * @return array Status information about the batch processing.
  */
-function image_squeeze_process_batch( $batch_size = 10 ) {
+function medshi_imsqz_process_batch( $batch_size = 10 ) {
     // Load the job queue
     $queue = get_option( 'imagesqueeze_job_queue', array() );
     
@@ -25,7 +25,7 @@ function image_squeeze_process_batch( $batch_size = 10 ) {
     if ( empty( $current_job ) || empty( $queue ) || empty( $current_job['status'] ) || $current_job['status'] !== 'in_progress' ) {
         return array(
             'error' => true,
-            'message' => __( 'No active job found.', 'image-squeeze' ),
+            'message' => __( 'No active job found.', 'imagesqueeze' ),
         );
     }
     
@@ -40,7 +40,7 @@ function image_squeeze_process_batch( $batch_size = 10 ) {
     // Process each image in the batch
     foreach ( $batch_ids as $attachment_id ) {
         // Process the image
-        $result = image_squeeze_process_image( $attachment_id );
+        $result = medshi_imsqz_process_image( $attachment_id );
         
         // Increment counters based on result
         $processed_count++;
@@ -68,9 +68,9 @@ function image_squeeze_process_batch( $batch_size = 10 ) {
         $current_job['cleanup_on_next_visit'] = true;
         
         // Log the completed job if we have a job type
-        if ( isset( $current_job['type'] ) && function_exists( 'image_squeeze_log_completed_job' ) ) {
+        if ( isset( $current_job['type'] ) && function_exists( 'medshi_imsqz_log_completed_job' ) ) {
             // Pass the entire job object instead of just the type
-            image_squeeze_log_completed_job( $current_job );
+            medshi_imsqz_log_completed_job( $current_job );
         }
     }
     
@@ -90,18 +90,18 @@ function image_squeeze_process_batch( $batch_size = 10 ) {
 /**
  * AJAX handler for processing a batch of images.
  */
-function image_squeeze_ajax_process_batch() {
+function medshi_imsqz_ajax_process_batch() {
     // Check if user has required capability
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_send_json_error( array(
-            'message' => __( 'You do not have permission to perform this action.', 'image-squeeze' ),
+            'message' => __( 'You do not have permission to perform this action.', 'imagesqueeze' ),
         ) );
     }
     
     // Verify nonce
     if ( ! check_ajax_referer( 'image_squeeze_nonce', 'security', false ) ) {
         wp_send_json_error( array(
-            'message' => __( 'Security check failed.', 'image-squeeze' ),
+            'message' => __( 'Security check failed.', 'imagesqueeze' ),
         ) );
     }
     
@@ -116,7 +116,7 @@ function image_squeeze_ajax_process_batch() {
     }
     
     // Process the batch
-    $result = image_squeeze_process_batch( $batch_size );
+    $result = medshi_imsqz_process_batch( $batch_size );
     
     // Check for errors
     if ( isset( $result['error'] ) && $result['error'] ) {
@@ -134,4 +134,4 @@ function image_squeeze_ajax_process_batch() {
 }
 
 // Register AJAX action
-add_action( 'wp_ajax_imagesqueeze_process_batch', 'image_squeeze_ajax_process_batch' ); 
+add_action( 'wp_ajax_imagesqueeze_process_batch', 'medshi_imsqz_ajax_process_batch' ); 

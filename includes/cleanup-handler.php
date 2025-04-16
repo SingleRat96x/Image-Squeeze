@@ -12,21 +12,21 @@ defined('ABSPATH') || exit;
 /**
  * Register AJAX handlers for cleanup operations.
  */
-function image_squeeze_register_cleanup_handlers() {
-    add_action('wp_ajax_imagesqueeze_cleanup_orphaned', 'image_squeeze_cleanup_orphaned_callback');
+function medshi_imsqz_register_cleanup_handlers() {
+    add_action('wp_ajax_imagesqueeze_cleanup_orphaned', 'medshi_imsqz_cleanup_orphaned_callback');
 }
-add_action('init', 'image_squeeze_register_cleanup_handlers');
+add_action('init', 'medshi_imsqz_register_cleanup_handlers');
 
 /**
  * AJAX callback to find and delete orphaned WebP files.
  */
-function image_squeeze_cleanup_orphaned_callback() {
+function medshi_imsqz_cleanup_orphaned_callback() {
     // Verify nonce
     check_ajax_referer('image_squeeze_nonce', 'security');
     
     // Check capabilities
     if (!current_user_can('manage_options')) {
-        wp_send_json_error(__('You do not have permission to perform this action.', 'image-squeeze'));
+        wp_send_json_error(__('You do not have permission to perform this action.', 'imagesqueeze'));
     }
     
     // Get the uploads directory info
@@ -34,7 +34,7 @@ function image_squeeze_cleanup_orphaned_callback() {
     $base_dir = $upload_dir['basedir'];
     
     // Find all WebP files in the uploads directory
-    $orphaned_files = image_squeeze_find_orphaned_webp_files($base_dir);
+    $orphaned_files = medshi_imsqz_find_orphaned_webp_files($base_dir);
     
     // Delete the orphaned files
     $deleted_files = array();
@@ -48,7 +48,7 @@ function image_squeeze_cleanup_orphaned_callback() {
     }
     
     // Add to logs
-    image_squeeze_log_cleanup($deleted_count);
+    medshi_imsqz_log_cleanup($deleted_count);
     
     // Limit the number of files to return (for performance)
     $files_to_return = array_slice($deleted_files, 0, 100);
@@ -65,7 +65,7 @@ function image_squeeze_cleanup_orphaned_callback() {
  *
  * @param int $deleted_count Number of files deleted.
  */
-function image_squeeze_log_cleanup($deleted_count) {
+function medshi_imsqz_log_cleanup($deleted_count) {
     // Get current logs
     $logs = get_option('imagesqueeze_optimization_log', array());
     
@@ -94,7 +94,7 @@ function image_squeeze_log_cleanup($deleted_count) {
  * @param string $base_dir The base directory to scan.
  * @return array Array of orphaned WebP file paths.
  */
-function image_squeeze_find_orphaned_webp_files($base_dir) {
+function medshi_imsqz_find_orphaned_webp_files($base_dir) {
     $orphaned_files = array();
     
     // Safety check - make sure this is in the uploads directory
@@ -103,7 +103,7 @@ function image_squeeze_find_orphaned_webp_files($base_dir) {
     }
     
     // Find all WebP files
-    $webp_files = image_squeeze_find_files_by_extension($base_dir, 'webp');
+    $webp_files = medshi_imsqz_find_files_by_extension($base_dir, 'webp');
     
     foreach ($webp_files as $webp_file) {
         // Skip WebP files that don't follow our naming convention
@@ -139,7 +139,7 @@ function image_squeeze_find_orphaned_webp_files($base_dir) {
  * @param string $extension The file extension to find (without the dot).
  * @return array Array of file paths.
  */
-function image_squeeze_find_files_by_extension($base_dir, $extension) {
+function medshi_imsqz_find_files_by_extension($base_dir, $extension) {
     $files = array();
     
     // Safety check - make sure this is in the uploads directory
